@@ -1,0 +1,11 @@
+.bundle-stats
+.vscode
+__screenshots__
+__traces__
+.vitest
+test-results
+playwright-report
+dist
+node_modules
+*.tgz
+coverage

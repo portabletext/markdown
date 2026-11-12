@@ -1,0 +1,19 @@
+minimumReleaseAge: 4320
+minimumReleaseAgeExclude:
+  - "@portabletext/*"
+  - "@sanity/*"
+  - "@types/*"
+  - "@typescript/*"
+  - csstype
+  - vite@7.3.2 || 7.3.5 || 8.3.3
+  - oxlint
+  - "@oxlint/*"
+  - vitest@5.0.5
+  - "@vitest/mocker@5.0.5"
+  - "@vitest/spy@5.0.5"
+trustPolicy: no-downgrade
+trustPolicyExclude:
+  - rxjs@7.8.2
+  - semver@6.3.1
+patchedDependencies:
+  "@microsoft/api-extractor": patches/@microsoft__api-extractor.patch

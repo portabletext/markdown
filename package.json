@@ -8,14 +8,13 @@
   ],
   "homepage": "https://portabletext.org",
   "bugs": {
-    "url": "https://github.com/portabletext/editor/issues"
+    "url": "https://github.com/portabletext/markdown/issues"
   },
   "license": "MIT",
   "author": "Sanity.io <hello@sanity.io>",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/portabletext/editor.git",
-    "directory": "packages/markdown"
+    "url": "https://github.com/portabletext/markdown.git"
   },
   "files": [
     "dist"
@@ -38,11 +37,18 @@
   },
   "scripts": {
     "build": "pkg-utils build --strict --check",
+    "bundle-stats": "bundle-stats",
+    "check:format": "oxfmt --check .",
+    "check:knip": "NODE_OPTIONS=\"$NODE_OPTIONS --conditions=source\" knip",
+    "check:lint": "oxlint",
     "check:types": "tsc",
     "check:types:watch": "tsc --watch",
-    "clean": "del .turbo && del dist && del node_modules",
+    "clean": "del dist && del node_modules",
     "dev": "pkg-utils watch",
-    "prepublishOnly": "turbo run build",
+    "format": "oxfmt .",
+    "lint:fix": "oxlint --fix",
+    "prepublishOnly": "pnpm build",
+    "release": "pnpm build && changeset publish",
     "test": "vitest --run",
     "test:unit": "vitest --run --project unit",
     "test:unit:watch": "vitest --project unit",
@@ -50,24 +56,34 @@
   },
   "dependencies": {
     "@mdit/plugin-alert": "^2.0.1",
-    "@portabletext/schema": "workspace:^",
+    "@portabletext/schema": "^3.1.0",
     "@portabletext/toolkit": "^6.0.0",
-    "@sanity/diff-match-patch": "catalog:",
+    "@sanity/diff-match-patch": "^3.2.1",
     "linkify-it": "^6.1.0",
     "markdown-it": "^15.0.3"
   },
   "devDependencies": {
-    "@portabletext/test": "workspace:^",
+    "@changesets/changelog-github": "^1.0.1",
+    "@changesets/cli": "^3.0.3",
+    "@portabletext/test": "^2.1.3",
     "@portabletext/types": "^4.0.2",
-    "@sanity/pkg-utils": "catalog:tooling",
-    "@sanity/tsconfig": "catalog:tooling",
-    "typescript": "catalog:tooling",
-    "vite": "catalog:tooling",
-    "vitest": "catalog:tooling"
+    "@rexxars/bundle-stats": "^2.0.1",
+    "@sanity/pkg-utils": "^12.3.0",
+    "@sanity/tsconfig": "^2.2.1",
+    "@types/node": "^24",
+    "del-cli": "^6.0.0",
+    "knip": "6.0.0",
+    "oxfmt": "^0.56.0",
+    "oxlint": "^1.79.0",
+    "pkg-pr-new": "^0.0.88",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.3",
+    "vitest": "^5.0.5"
   },
   "engines": {
     "node": ">=22.12"
   },
+  "packageManager": "pnpm@10.25.0",
   "inlinedDependencies": {
     "@portabletext/types": "4.0.2"
   }
