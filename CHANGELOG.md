@@ -1,5 +1,13 @@
 # @portabletext/markdown
 
+## 2.9.4
+
+### Patch Changes
+
+- [#4](https://github.com/portabletext/markdown/pull/4) [`d567328`](https://github.com/portabletext/markdown/commit/d56732840f48260abbbf935b4ce9bb9893e873f7) Thanks [@christianhg](https://github.com/christianhg)! - fix: link the package to its own repository
+  
+  The package now lives in its own repository at portabletext/markdown, and its npm page links there. Its code is unchanged.
+
 ## 2.9.3
 
 ### Patch Changes
