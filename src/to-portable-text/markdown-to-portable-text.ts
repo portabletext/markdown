@@ -1218,13 +1218,16 @@ function convertMarkdown(
             break
           }
 
-          // Flat list path: ensure the current text block carries
-          // `listItem` + `level` fields.
+          // Flat list path: open the text block. With a list type it carries
+          // `listItem` + `level` fields. Without one the block opens as a plain
+          // paragraph, so a link opening it keeps its markDef.
           if (!currentBlock) {
             const listType = currentListStack.at(-1)
 
             if (listType) {
               ensureListBlock(listType)
+            } else {
+              ensureTextBlock()
             }
           }
 
