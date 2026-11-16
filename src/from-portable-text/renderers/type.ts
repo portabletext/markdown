@@ -8,6 +8,7 @@ import {
   escapeTableCell,
 } from '../../escape'
 import {markListItemFirstBlock} from '../list-item-first-block'
+import {consumeCellParagraph, markCellParagraph} from '../tag-hard-break'
 import type {PortableTextTypeRenderer} from '../types'
 import {validateLink} from '../validate-link'
 import {wrapInCodeSpan} from './marks'
@@ -260,12 +261,20 @@ function renderTable(
             isInline: true,
           })
         }
-        const rendered = renderNode({
-          node: block,
-          index,
-          isInline: false,
-          renderNode,
-        })
+        if (isPlainParagraph(block)) {
+          markCellParagraph(block)
+        }
+        let rendered: string
+        try {
+          rendered = renderNode({
+            node: block,
+            index,
+            isInline: false,
+            renderNode,
+          })
+        } finally {
+          consumeCellParagraph(block)
+        }
         if (rendered === DefaultUnknownTypeRenderer(rendererOptions)) {
           return DefaultUnknownTypeRenderer({
             ...rendererOptions,

@@ -342,7 +342,10 @@ function isEmptyTableRow(
       (block) =>
         isTextBlock(context, block) &&
         block.children.every(
-          (child) => isSpan(context, child) && (child.text ?? '').trim() === '',
+          (child) =>
+            isSpan(context, child) &&
+            !(child.text ?? '').includes('\n') &&
+            (child.text ?? '').trim() === '',
         ),
     ),
   )
@@ -861,6 +864,18 @@ function convertMarkdown(
   // (`user:pass@host`) are off by default; this must stay in lockstep
   // with the mirror `LinkifyIt` in `escape-plain-text.ts`.
   md.linkify.set({fuzzyLink: true, urlAuth: true})
+
+  // With `urlAuth`, linkify reads `https://a.com<br>b@c.com` as one URL.
+  // Cut the text it scans at the first break tag, and at the backslashes
+  // before it, so the tag is parsed as a break.
+  const matchAtStart = md.linkify.matchAtStart.bind(md.linkify)
+  md.linkify.matchAtStart = (text) => {
+    const boundary = text.search(/\\*<br ?\/?>/i)
+    if (boundary !== -1) {
+      return matchAtStart(text.slice(0, boundary))
+    }
+    return matchAtStart(text)
+  }
 
   const tokens = md.parse(markdown, {})
 
@@ -2976,6 +2991,11 @@ function convertMarkdown(
                 }
                 currentMarkDefs = openMarkDefs.map((markDef) => ({...markDef}))
                 childIndex++
+                break
+              }
+
+              if (/^<br ?\/?>$/i.test(childToken.content)) {
+                addSpan('\n')
                 break
               }
 

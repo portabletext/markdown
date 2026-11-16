@@ -51,6 +51,7 @@ const linkify = new LinkifyIt({fuzzyLink: true, urlAuth: true})
 type LeafPiece =
   | {kind: 'text'; raw: string; isLinkLabel: boolean; markSignature: string}
   | {kind: 'hardBreak'}
+  | {kind: 'tagBreak'}
   | {kind: 'opaque'}
 
 /**
@@ -118,13 +119,10 @@ interface Edit {
  * for why), and a claim spliced across a decorator boundary is never masked
  * in the first place.
  *
- * `isHeading` is set for ATX headings: only the first joined line sits
- * inside the `# ` prefix an ATX heading can never be reparsed as a block
- * construct within, so line-leading hazards are skipped there; a hard
- * break's later lines are ordinary markdown lines and get the full
- * line-start battery. That first line carries a line-*end* hazard of its
- * own instead: a trailing `#`-run reads back as the heading's own optional
- * closing sequence.
+ * `isHeading` is set for ATX headings. The first line sits inside the
+ * `# ` prefix, so line-start hazards are skipped there. With the default
+ * break, a heading writes `<br>` and stays on that line. With a custom
+ * break that writes a newline, the later lines get the full line-start checks.
  *
  * `isListItem` is set when the block renders as list-item content: a
  * `[ ] `/`[x] `/`[X] ` at the very start of the first joined line reads
@@ -137,6 +135,10 @@ interface Edit {
  * hard break like that can't be planned as a line boundary, so it's walled
  * off as an opaque segment instead, the same protection an inline object's
  * unknown rendered text already gets.
+ *
+ * `hardBreakIsTag` says the break is written as a `<br>` tag. It joins
+ * the two lines like an opaque break, but the planner sees a `<` there
+ * so a backslash before it gets escaped.
  */
 export function planLeafEscaping(
   children: ReadonlyArray<PortableTextSpan | ArbitraryTypedObject>,
@@ -145,6 +147,7 @@ export function planLeafEscaping(
     isHeading: boolean
     isListItem: boolean
     hardBreakOutputHasNewline: boolean
+    hardBreakIsTag?: boolean
   },
 ): Array<string> {
   const linkMarkKeys = new Set(
@@ -177,7 +180,7 @@ export function planLeafEscaping(
           pieces.push(
             options.hardBreakOutputHasNewline
               ? {kind: 'hardBreak'}
-              : {kind: 'opaque'},
+              : {kind: options.hardBreakIsTag ? 'tagBreak' : 'opaque'},
           )
         }
         pieces.push({kind: 'text', raw: line, isLinkLabel, markSignature})
@@ -221,8 +224,10 @@ export function planLeafEscaping(
       continue
     }
 
-    if (piece.kind === 'opaque') {
-      lineText += OPAQUE_CHAR
+    if (piece.kind === 'opaque' || piece.kind === 'tagBreak') {
+      // The tag starts with `<`, so a backslash before it gets escaped,
+      // and emphasis and links stop there as they will when read back.
+      lineText += piece.kind === 'tagBreak' ? '<' : OPAQUE_CHAR
       lineChars.push(null)
       lineIsLinkLabelChar.push(false)
       lineMarkSignature.push('')
@@ -317,11 +322,25 @@ function computeLinkifyMask(
     return mask
   }
 
-  let probe = ''
+  const probeChars: string[] = []
   for (let index = 0; index < text.length; index++) {
-    probe += chars[index] === null || isLinkLabelChar[index] ? ' ' : text[index]
+    probeChars.push(
+      chars[index] === null || isLinkLabelChar[index] ? ' ' : text[index]!,
+    )
   }
 
+  // Linkify stops at a break tag on read, so blank out the tag and the
+  // backslashes before it. Literal `<br>` text then gets its normal escapes,
+  // and so does a backslash before an emitted tag.
+  for (let index = 0; index < text.length; index++) {
+    if (chars[index] === null && text[index] === '<') {
+      for (let start = index - 1; start >= 0 && text[start] === '\\'; start--) {
+        probeChars[start] = ' '
+      }
+    }
+  }
+  let probe = probeChars.join('')
+  probe = probe.replace(/\\*<br ?\/?>/gi, (tag) => ' '.repeat(tag.length))
   const matches = linkify.match(probe) ?? []
   for (const match of matches) {
     if (match.schema === '') {

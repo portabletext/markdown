@@ -1507,6 +1507,1253 @@ describe(portableTextToMarkdown.name, () => {
   })
 
   describe('hard breaks', () => {
+    test('a URL ending in a backslash keeps its break in a heading', () => {
+      const markdown = portableTextToMarkdown([
+        {
+          _type: 'block',
+          style: 'h3',
+          markDefs: [],
+          children: [{_type: 'span', text: 'http://e.co/a\\\nb', marks: []}],
+        },
+      ])
+      expect(markdown).toEqual('### http://e.co/a\\\\<br>b')
+      expect(
+        markdownToPortableText(markdown, {
+          keyGenerator: createTestKeyGenerator(),
+        }),
+      ).toEqual([
+        {
+          _type: 'block',
+          _key: 'k0',
+          style: 'h3',
+          markDefs: [{_key: 'k1', _type: 'link', href: 'http://e.co/a'}],
+          children: [
+            {_type: 'span', _key: 'k2', text: 'http://e.co/a', marks: ['k1']},
+            {_type: 'span', _key: 'k3', text: '\\\nb', marks: []},
+          ],
+        },
+      ])
+    })
+
+    test('a URL ending in a backslash keeps its break in a table cell', () => {
+      const markdown = portableTextToMarkdown([
+        {
+          _type: 'table',
+          headerRows: 1,
+          rows: [
+            {
+              _type: 'row',
+              cells: [
+                {
+                  _type: 'cell',
+                  value: [
+                    {
+                      _type: 'block',
+                      style: 'normal',
+                      markDefs: [],
+                      children: [
+                        {_type: 'span', text: 'http://e.co/a\\\nb', marks: []},
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ])
+      expect(markdown).toEqual('| http://e.co/a\\\\<br />b |\n| --- |')
+      expect(
+        markdownToPortableText(markdown, {
+          keyGenerator: createTestKeyGenerator(),
+        }),
+      ).toEqual([
+        {
+          _type: 'table',
+          _key: 'k6',
+          headerRows: 1,
+          rows: [
+            {
+              _type: 'row',
+              _key: 'k5',
+              cells: [
+                {
+                  _type: 'cell',
+                  _key: 'k4',
+                  value: [
+                    {
+                      _type: 'block',
+                      _key: 'k0',
+                      style: 'normal',
+                      markDefs: [
+                        {_key: 'k1', _type: 'link', href: 'http://e.co/a'},
+                      ],
+                      children: [
+                        {
+                          _type: 'span',
+                          _key: 'k2',
+                          text: 'http://e.co/a',
+                          marks: ['k1'],
+                        },
+                        {_type: 'span', _key: 'k3', text: '\\\nb', marks: []},
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ])
+    })
+
+    test('a custom table renderer cannot leave a cell break on a later root render', () => {
+      const block = {
+        _type: 'block',
+        _key: 'b1',
+        style: 'normal',
+        markDefs: [],
+        children: [{_type: 'span', _key: 's1', text: 'a\nb', marks: []}],
+      }
+      const table = {
+        _type: 'table',
+        _key: 't1',
+        headerRows: 1,
+        rows: [
+          {
+            _type: 'row',
+            _key: 'r1',
+            cells: [{_type: 'cell', _key: 'c1', value: [block]}],
+          },
+        ],
+      }
+      portableTextToMarkdown([table], {
+        types: {
+          table: (options) =>
+            DefaultTableRenderer({...options, renderNode: () => 'CELL'}),
+        },
+      })
+      expect(portableTextToMarkdown([block])).toBe('a  \nb')
+    })
+
+    test('literal break text between a URL and email survives a round trip', () => {
+      const markdown = portableTextToMarkdown([
+        {
+          _type: 'block',
+          style: 'normal',
+          markDefs: [],
+          children: [{_type: 'span', text: 'http://e.co<br>a@b.co', marks: []}],
+        },
+      ])
+      expect(markdown).toEqual('http://e.co\\<br>a@b.co')
+      expect(
+        markdownToPortableText(markdown, {
+          keyGenerator: createTestKeyGenerator(),
+        }),
+      ).toEqual([
+        {
+          _type: 'block',
+          _key: 'k0',
+          style: 'normal',
+          markDefs: [
+            {_key: 'k1', _type: 'link', href: 'http://e.co'},
+            {_key: 'k4', _type: 'link', href: 'mailto:a@b.co'},
+          ],
+          children: [
+            {_type: 'span', _key: 'k2', text: 'http://e.co', marks: ['k1']},
+            {_type: 'span', _key: 'k3', text: '<br>', marks: []},
+            {_type: 'span', _key: 'k5', text: 'a@b.co', marks: ['k4']},
+          ],
+        },
+      ])
+    })
+
+    test('break tags write root h3', () => {
+      const value = [
+        {
+          _type: 'block',
+          style: 'h3',
+          markDefs: [],
+          children: [{_type: 'span', text: 'foo\nbar', marks: []}],
+        },
+      ]
+      const markdown = portableTextToMarkdown(value)
+      expect(markdown).toBe('### foo<br>bar')
+      expect(
+        JSON.parse(
+          JSON.stringify(markdownToPortableText(markdown), (key, value) =>
+            key === '_key' ? undefined : value,
+          ),
+        ),
+      ).toEqual([
+        {
+          _type: 'block',
+          style: 'h3',
+          markDefs: [],
+          children: [{_type: 'span', text: 'foo\nbar', marks: []}],
+        },
+      ])
+    })
+    test('break tags write list h3', () => {
+      const value = [
+        {
+          _type: 'block',
+          style: 'h3',
+          markDefs: [],
+          children: [{_type: 'span', text: 'foo\nbar', marks: []}],
+          listItem: 'bullet',
+          level: 1,
+        },
+      ]
+      const markdown = portableTextToMarkdown(value)
+      expect(markdown).toBe('- ### foo<br>bar')
+      expect(
+        JSON.parse(
+          JSON.stringify(markdownToPortableText(markdown), (key, value) =>
+            key === '_key' ? undefined : value,
+          ),
+        ),
+      ).toEqual([
+        {
+          _type: 'block',
+          style: 'normal',
+          markDefs: [],
+          listItem: 'bullet',
+          level: 1,
+          children: [{_type: 'span', text: '', marks: []}],
+        },
+        {
+          _type: 'block',
+          style: 'h3',
+          markDefs: [],
+          children: [{_type: 'span', text: 'foo\nbar', marks: []}],
+        },
+      ])
+    })
+    test('break tags write custom heading', () => {
+      const value = [
+        {
+          _type: 'block',
+          style: 'h3',
+          markDefs: [],
+          children: [{_type: 'span', text: 'foo\nbar', marks: []}],
+        },
+      ]
+      const markdown = portableTextToMarkdown(value, {
+        block: {h3: ({children}) => `### ${children}`},
+      })
+      expect(markdown).toBe('### foo<br>bar')
+      expect(
+        JSON.parse(
+          JSON.stringify(markdownToPortableText(markdown), (key, value) =>
+            key === '_key' ? undefined : value,
+          ),
+        ),
+      ).toEqual([
+        {
+          _type: 'block',
+          style: 'h3',
+          markDefs: [],
+          children: [{_type: 'span', text: 'foo\nbar', marks: []}],
+        },
+      ])
+    })
+    test('break tags write h1 without mark definitions', () => {
+      const value = [
+        {
+          _type: 'block',
+          style: 'h1',
+          children: [{_type: 'span', text: 'foo\nbar', marks: []}],
+        },
+      ]
+      const markdown = portableTextToMarkdown(value)
+      expect(markdown).toBe('# foo<br>bar')
+      expect(
+        JSON.parse(
+          JSON.stringify(markdownToPortableText(markdown), (key, value) =>
+            key === '_key' ? undefined : value,
+          ),
+        ),
+      ).toEqual([
+        {
+          _type: 'block',
+          style: 'h1',
+          markDefs: [],
+          children: [{_type: 'span', text: 'foo\nbar', marks: []}],
+        },
+      ])
+    })
+    test('break tags write middle cell break', () => {
+      const value = [
+        {
+          _type: 'table',
+          headerRows: 1,
+          rows: [
+            {
+              _type: 'row',
+              cells: [
+                {
+                  _type: 'cell',
+                  value: [
+                    {
+                      _type: 'block',
+                      style: 'normal',
+                      markDefs: [],
+                      children: [{_type: 'span', text: 'foo\nbar', marks: []}],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ]
+      const markdown = portableTextToMarkdown(value)
+      expect(markdown).toBe('| foo<br />bar |\n| --- |')
+      expect(
+        JSON.parse(
+          JSON.stringify(markdownToPortableText(markdown), (key, value) =>
+            key === '_key' ? undefined : value,
+          ),
+        ),
+      ).toEqual([
+        {
+          _type: 'table',
+          headerRows: 1,
+          rows: [
+            {
+              _type: 'row',
+              cells: [
+                {
+                  _type: 'cell',
+                  value: [
+                    {
+                      _type: 'block',
+                      style: 'normal',
+                      markDefs: [],
+                      children: [{_type: 'span', text: 'foo\nbar', marks: []}],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ])
+    })
+    test('break tags write middle cell break in callout', () => {
+      const value = [
+        {
+          _type: 'callout',
+          tone: 'note',
+          content: [
+            {
+              _type: 'table',
+              headerRows: 1,
+              rows: [
+                {
+                  _type: 'row',
+                  cells: [
+                    {
+                      _type: 'cell',
+                      value: [
+                        {
+                          _type: 'block',
+                          style: 'normal',
+                          markDefs: [],
+                          children: [
+                            {_type: 'span', text: 'foo\nbar', marks: []},
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ]
+      const markdown = portableTextToMarkdown(value)
+      expect(markdown).toBe('> [!NOTE]\n> | foo<br />bar |\n> | --- |')
+      expect(
+        JSON.parse(
+          JSON.stringify(markdownToPortableText(markdown), (key, value) =>
+            key === '_key' ? undefined : value,
+          ),
+        ),
+      ).toEqual([
+        {
+          _type: 'callout',
+          tone: 'note',
+          content: [
+            {
+              _type: 'table',
+              headerRows: 1,
+              rows: [
+                {
+                  _type: 'row',
+                  cells: [
+                    {
+                      _type: 'cell',
+                      value: [
+                        {
+                          _type: 'block',
+                          style: 'normal',
+                          markDefs: [],
+                          children: [
+                            {_type: 'span', text: 'foo\nbar', marks: []},
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ])
+    })
+    test('break tags write leading cell break', () => {
+      const value = [
+        {
+          _type: 'table',
+          headerRows: 1,
+          rows: [
+            {
+              _type: 'row',
+              cells: [
+                {
+                  _type: 'cell',
+                  value: [
+                    {
+                      _type: 'block',
+                      style: 'normal',
+                      markDefs: [],
+                      children: [{_type: 'span', text: '\nfoo', marks: []}],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ]
+      const markdown = portableTextToMarkdown(value)
+      expect(markdown).toBe('| <br />foo |\n| --- |')
+      expect(
+        JSON.parse(
+          JSON.stringify(markdownToPortableText(markdown), (key, value) =>
+            key === '_key' ? undefined : value,
+          ),
+        ),
+      ).toEqual([
+        {
+          _type: 'table',
+          headerRows: 1,
+          rows: [
+            {
+              _type: 'row',
+              cells: [
+                {
+                  _type: 'cell',
+                  value: [
+                    {
+                      _type: 'block',
+                      style: 'normal',
+                      markDefs: [],
+                      children: [{_type: 'span', text: '\nfoo', marks: []}],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ])
+    })
+    test('break tags write leading cell break in callout', () => {
+      const value = [
+        {
+          _type: 'callout',
+          tone: 'note',
+          content: [
+            {
+              _type: 'table',
+              headerRows: 1,
+              rows: [
+                {
+                  _type: 'row',
+                  cells: [
+                    {
+                      _type: 'cell',
+                      value: [
+                        {
+                          _type: 'block',
+                          style: 'normal',
+                          markDefs: [],
+                          children: [{_type: 'span', text: '\nfoo', marks: []}],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ]
+      const markdown = portableTextToMarkdown(value)
+      expect(markdown).toBe('> [!NOTE]\n> | <br />foo |\n> | --- |')
+      expect(
+        JSON.parse(
+          JSON.stringify(markdownToPortableText(markdown), (key, value) =>
+            key === '_key' ? undefined : value,
+          ),
+        ),
+      ).toEqual([
+        {
+          _type: 'callout',
+          tone: 'note',
+          content: [
+            {
+              _type: 'table',
+              headerRows: 1,
+              rows: [
+                {
+                  _type: 'row',
+                  cells: [
+                    {
+                      _type: 'cell',
+                      value: [
+                        {
+                          _type: 'block',
+                          style: 'normal',
+                          markDefs: [],
+                          children: [{_type: 'span', text: '\nfoo', marks: []}],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ])
+    })
+    test('break tags write trailing cell break', () => {
+      const value = [
+        {
+          _type: 'table',
+          headerRows: 1,
+          rows: [
+            {
+              _type: 'row',
+              cells: [
+                {
+                  _type: 'cell',
+                  value: [
+                    {
+                      _type: 'block',
+                      style: 'normal',
+                      markDefs: [],
+                      children: [{_type: 'span', text: 'foo\n', marks: []}],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ]
+      const markdown = portableTextToMarkdown(value)
+      expect(markdown).toBe('| foo<br /> |\n| --- |')
+      expect(
+        JSON.parse(
+          JSON.stringify(markdownToPortableText(markdown), (key, value) =>
+            key === '_key' ? undefined : value,
+          ),
+        ),
+      ).toEqual([
+        {
+          _type: 'table',
+          headerRows: 1,
+          rows: [
+            {
+              _type: 'row',
+              cells: [
+                {
+                  _type: 'cell',
+                  value: [
+                    {
+                      _type: 'block',
+                      style: 'normal',
+                      markDefs: [],
+                      children: [{_type: 'span', text: 'foo\n', marks: []}],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ])
+    })
+    test('break tags write trailing cell break in callout', () => {
+      const value = [
+        {
+          _type: 'callout',
+          tone: 'note',
+          content: [
+            {
+              _type: 'table',
+              headerRows: 1,
+              rows: [
+                {
+                  _type: 'row',
+                  cells: [
+                    {
+                      _type: 'cell',
+                      value: [
+                        {
+                          _type: 'block',
+                          style: 'normal',
+                          markDefs: [],
+                          children: [{_type: 'span', text: 'foo\n', marks: []}],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ]
+      const markdown = portableTextToMarkdown(value)
+      expect(markdown).toBe('> [!NOTE]\n> | foo<br /> |\n> | --- |')
+      expect(
+        JSON.parse(
+          JSON.stringify(markdownToPortableText(markdown), (key, value) =>
+            key === '_key' ? undefined : value,
+          ),
+        ),
+      ).toEqual([
+        {
+          _type: 'callout',
+          tone: 'note',
+          content: [
+            {
+              _type: 'table',
+              headerRows: 1,
+              rows: [
+                {
+                  _type: 'row',
+                  cells: [
+                    {
+                      _type: 'cell',
+                      value: [
+                        {
+                          _type: 'block',
+                          style: 'normal',
+                          markDefs: [],
+                          children: [{_type: 'span', text: 'foo\n', marks: []}],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ])
+    })
+    test('break tags write consecutive cell break', () => {
+      const value = [
+        {
+          _type: 'table',
+          headerRows: 1,
+          rows: [
+            {
+              _type: 'row',
+              cells: [
+                {
+                  _type: 'cell',
+                  value: [
+                    {
+                      _type: 'block',
+                      style: 'normal',
+                      markDefs: [],
+                      children: [
+                        {_type: 'span', text: 'foo\n\nbar', marks: []},
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ]
+      const markdown = portableTextToMarkdown(value)
+      expect(markdown).toBe('| foo<br /><br />bar |\n| --- |')
+      expect(
+        JSON.parse(
+          JSON.stringify(markdownToPortableText(markdown), (key, value) =>
+            key === '_key' ? undefined : value,
+          ),
+        ),
+      ).toEqual([
+        {
+          _type: 'table',
+          headerRows: 1,
+          rows: [
+            {
+              _type: 'row',
+              cells: [
+                {
+                  _type: 'cell',
+                  value: [
+                    {
+                      _type: 'block',
+                      style: 'normal',
+                      markDefs: [],
+                      children: [
+                        {_type: 'span', text: 'foo\n\nbar', marks: []},
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ])
+    })
+    test('break tags write consecutive cell break in callout', () => {
+      const value = [
+        {
+          _type: 'callout',
+          tone: 'note',
+          content: [
+            {
+              _type: 'table',
+              headerRows: 1,
+              rows: [
+                {
+                  _type: 'row',
+                  cells: [
+                    {
+                      _type: 'cell',
+                      value: [
+                        {
+                          _type: 'block',
+                          style: 'normal',
+                          markDefs: [],
+                          children: [
+                            {_type: 'span', text: 'foo\n\nbar', marks: []},
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ]
+      const markdown = portableTextToMarkdown(value)
+      expect(markdown).toBe('> [!NOTE]\n> | foo<br /><br />bar |\n> | --- |')
+      expect(
+        JSON.parse(
+          JSON.stringify(markdownToPortableText(markdown), (key, value) =>
+            key === '_key' ? undefined : value,
+          ),
+        ),
+      ).toEqual([
+        {
+          _type: 'callout',
+          tone: 'note',
+          content: [
+            {
+              _type: 'table',
+              headerRows: 1,
+              rows: [
+                {
+                  _type: 'row',
+                  cells: [
+                    {
+                      _type: 'cell',
+                      value: [
+                        {
+                          _type: 'block',
+                          style: 'normal',
+                          markDefs: [],
+                          children: [
+                            {_type: 'span', text: 'foo\n\nbar', marks: []},
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ])
+    })
+    test('break tags write backslash cell break', () => {
+      const value = [
+        {
+          _type: 'table',
+          headerRows: 1,
+          rows: [
+            {
+              _type: 'row',
+              cells: [
+                {
+                  _type: 'cell',
+                  value: [
+                    {
+                      _type: 'block',
+                      style: 'normal',
+                      markDefs: [],
+                      children: [
+                        {_type: 'span', text: 'foo\\\nbar', marks: []},
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ]
+      const markdown = portableTextToMarkdown(value)
+      expect(markdown).toBe('| foo\\\\<br />bar |\n| --- |')
+      expect(
+        JSON.parse(
+          JSON.stringify(markdownToPortableText(markdown), (key, value) =>
+            key === '_key' ? undefined : value,
+          ),
+        ),
+      ).toEqual([
+        {
+          _type: 'table',
+          headerRows: 1,
+          rows: [
+            {
+              _type: 'row',
+              cells: [
+                {
+                  _type: 'cell',
+                  value: [
+                    {
+                      _type: 'block',
+                      style: 'normal',
+                      markDefs: [],
+                      children: [
+                        {_type: 'span', text: 'foo\\\nbar', marks: []},
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ])
+    })
+    test('break tags write backslash cell break in callout', () => {
+      const value = [
+        {
+          _type: 'callout',
+          tone: 'note',
+          content: [
+            {
+              _type: 'table',
+              headerRows: 1,
+              rows: [
+                {
+                  _type: 'row',
+                  cells: [
+                    {
+                      _type: 'cell',
+                      value: [
+                        {
+                          _type: 'block',
+                          style: 'normal',
+                          markDefs: [],
+                          children: [
+                            {_type: 'span', text: 'foo\\\nbar', marks: []},
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ]
+      const markdown = portableTextToMarkdown(value)
+      expect(markdown).toBe('> [!NOTE]\n> | foo\\\\<br />bar |\n> | --- |')
+      expect(
+        JSON.parse(
+          JSON.stringify(markdownToPortableText(markdown), (key, value) =>
+            key === '_key' ? undefined : value,
+          ),
+        ),
+      ).toEqual([
+        {
+          _type: 'callout',
+          tone: 'note',
+          content: [
+            {
+              _type: 'table',
+              headerRows: 1,
+              rows: [
+                {
+                  _type: 'row',
+                  cells: [
+                    {
+                      _type: 'cell',
+                      value: [
+                        {
+                          _type: 'block',
+                          style: 'normal',
+                          markDefs: [],
+                          children: [
+                            {_type: 'span', text: 'foo\\\nbar', marks: []},
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ])
+    })
+    test('break tags write cell break before paragraph', () => {
+      const value = [
+        {
+          _type: 'table',
+          headerRows: 1,
+          rows: [
+            {
+              _type: 'row',
+              cells: [
+                {
+                  _type: 'cell',
+                  value: [
+                    {
+                      _type: 'block',
+                      style: 'normal',
+                      markDefs: [],
+                      children: [{_type: 'span', text: 'foo\n', marks: []}],
+                    },
+                    {
+                      _type: 'block',
+                      style: 'normal',
+                      markDefs: [],
+                      children: [{_type: 'span', text: 'bar', marks: []}],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ]
+      const markdown = portableTextToMarkdown(value)
+      expect(markdown).toBe('| foo<br /><br><br>bar |\n| --- |')
+      expect(
+        JSON.parse(
+          JSON.stringify(markdownToPortableText(markdown), (key, value) =>
+            key === '_key' ? undefined : value,
+          ),
+        ),
+      ).toEqual([
+        {
+          _type: 'table',
+          headerRows: 1,
+          rows: [
+            {
+              _type: 'row',
+              cells: [
+                {
+                  _type: 'cell',
+                  value: [
+                    {
+                      _type: 'block',
+                      style: 'normal',
+                      markDefs: [],
+                      children: [{_type: 'span', text: 'foo\n', marks: []}],
+                    },
+                    {
+                      _type: 'block',
+                      style: 'normal',
+                      markDefs: [],
+                      children: [{_type: 'span', text: 'bar', marks: []}],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ])
+    })
+    test('break tags write cell break before paragraph in callout', () => {
+      const value = [
+        {
+          _type: 'callout',
+          tone: 'note',
+          content: [
+            {
+              _type: 'table',
+              headerRows: 1,
+              rows: [
+                {
+                  _type: 'row',
+                  cells: [
+                    {
+                      _type: 'cell',
+                      value: [
+                        {
+                          _type: 'block',
+                          style: 'normal',
+                          markDefs: [],
+                          children: [{_type: 'span', text: 'foo\n', marks: []}],
+                        },
+                        {
+                          _type: 'block',
+                          style: 'normal',
+                          markDefs: [],
+                          children: [{_type: 'span', text: 'bar', marks: []}],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ]
+      const markdown = portableTextToMarkdown(value)
+      expect(markdown).toBe('> [!NOTE]\n> | foo<br /><br><br>bar |\n> | --- |')
+      expect(
+        JSON.parse(
+          JSON.stringify(markdownToPortableText(markdown), (key, value) =>
+            key === '_key' ? undefined : value,
+          ),
+        ),
+      ).toEqual([
+        {
+          _type: 'callout',
+          tone: 'note',
+          content: [
+            {
+              _type: 'table',
+              headerRows: 1,
+              rows: [
+                {
+                  _type: 'row',
+                  cells: [
+                    {
+                      _type: 'cell',
+                      value: [
+                        {
+                          _type: 'block',
+                          style: 'normal',
+                          markDefs: [],
+                          children: [{_type: 'span', text: 'foo\n', marks: []}],
+                        },
+                        {
+                          _type: 'block',
+                          style: 'normal',
+                          markDefs: [],
+                          children: [{_type: 'span', text: 'bar', marks: []}],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ])
+    })
+    test('break tags write h1 setext control', () => {
+      const value = [
+        {
+          _type: 'block',
+          style: 'h1',
+          markDefs: [],
+          children: [{_type: 'span', text: 'foo\nbar', marks: []}],
+        },
+      ]
+      const markdown = portableTextToMarkdown(value)
+      expect(markdown).toBe('foo  \nbar\n===')
+      expect(
+        JSON.parse(
+          JSON.stringify(markdownToPortableText(markdown), (key, value) =>
+            key === '_key' ? undefined : value,
+          ),
+        ),
+      ).toEqual([
+        {
+          _type: 'block',
+          style: 'h1',
+          markDefs: [],
+          children: [{_type: 'span', text: 'foo\nbar', marks: []}],
+        },
+      ])
+    })
+    test('break tags write h2 setext control', () => {
+      const value = [
+        {
+          _type: 'block',
+          style: 'h2',
+          markDefs: [],
+          children: [{_type: 'span', text: 'foo\nbar', marks: []}],
+        },
+      ]
+      const markdown = portableTextToMarkdown(value)
+      expect(markdown).toBe('foo  \nbar\n---')
+      expect(
+        JSON.parse(
+          JSON.stringify(markdownToPortableText(markdown), (key, value) =>
+            key === '_key' ? undefined : value,
+          ),
+        ),
+      ).toEqual([
+        {
+          _type: 'block',
+          style: 'h2',
+          markDefs: [],
+          children: [{_type: 'span', text: 'foo\nbar', marks: []}],
+        },
+      ])
+    })
+    test('break tags write plain cell control', () => {
+      const value = [
+        {
+          _type: 'table',
+          headerRows: 1,
+          rows: [
+            {
+              _type: 'row',
+              cells: [
+                {
+                  _type: 'cell',
+                  value: [
+                    {
+                      _type: 'block',
+                      style: 'normal',
+                      markDefs: [],
+                      children: [{_type: 'span', text: 'foo', marks: []}],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ]
+      const markdown = portableTextToMarkdown(value)
+      expect(markdown).toBe('| foo |\n| --- |')
+      expect(
+        JSON.parse(
+          JSON.stringify(markdownToPortableText(markdown), (key, value) =>
+            key === '_key' ? undefined : value,
+          ),
+        ),
+      ).toEqual([
+        {
+          _type: 'table',
+          headerRows: 1,
+          rows: [
+            {
+              _type: 'row',
+              cells: [
+                {
+                  _type: 'cell',
+                  value: [
+                    {
+                      _type: 'block',
+                      style: 'normal',
+                      markDefs: [],
+                      children: [{_type: 'span', text: 'foo', marks: []}],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ])
+    })
+    test('break tags preserve custom hardBreak in heading control', () => {
+      expect(
+        portableTextToMarkdown(
+          [
+            {
+              _type: 'block',
+              style: 'h3',
+              markDefs: [],
+              children: [{_type: 'span', text: 'foo\nbar', marks: []}],
+            },
+          ],
+          {hardBreak: () => '!'},
+        ),
+      ).toBe('### foo!bar')
+    })
+    test('break tags preserve custom hardBreak in cell control', () => {
+      expect(
+        portableTextToMarkdown(
+          [
+            {
+              _type: 'table',
+              headerRows: 1,
+              rows: [
+                {
+                  _type: 'row',
+                  cells: [
+                    {
+                      _type: 'cell',
+                      value: [
+                        {
+                          _type: 'block',
+                          style: 'normal',
+                          markDefs: [],
+                          children: [
+                            {_type: 'span', text: 'foo\nbar', marks: []},
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+          {hardBreak: () => '!'},
+        ),
+      ).toBe('| foo!bar |\n| --- |')
+    })
+
     test('default', () => {
       const markdown = 'foo  \nbar  \nbaz'
       const portableText = markdownToPortableText(markdown)
@@ -1576,7 +2823,7 @@ describe(portableTextToMarkdown.name, () => {
           .filter(isPortableTextSpan)
           .map((span) => span.text)
           .join(''),
-      ).toBe('a _<br />_ b')
+      ).toBe('a _\n_ b')
     })
 
     test('the same underscore shape stays unescaped and round-trips with the default hard break, unaffected by the sentinel fix', () => {
@@ -1772,7 +3019,7 @@ describe(portableTextToMarkdown.name, () => {
           markDefs: [],
         },
       ]
-      expect(portableTextToMarkdown(portableText)).toBe('### foo  \n  \nbar')
+      expect(portableTextToMarkdown(portableText)).toBe('### foo<br><br>bar')
     })
 
     test('an empty line between hard breaks keeps a custom hard break', () => {
@@ -3031,7 +4278,7 @@ describe(portableTextToMarkdown.name, () => {
           markDefs: [],
         },
       ]
-      expect(portableTextToMarkdown(portableText)).toBe('### foo  \nbar')
+      expect(portableTextToMarkdown(portableText)).toBe('### foo<br>bar')
     })
 
     test('an h2 with a hard break keeps a custom h2 renderer', () => {
@@ -3051,7 +4298,7 @@ describe(portableTextToMarkdown.name, () => {
         portableTextToMarkdown(portableText, {
           block: {h2: ({children}) => `## ${children}`},
         }),
-      ).toBe('## foo  \nbar')
+      ).toBe('## foo<br>bar')
     })
 
     test('an h1 with a hard break keeps a custom block renderer function', () => {
@@ -3071,7 +4318,7 @@ describe(portableTextToMarkdown.name, () => {
         portableTextToMarkdown(portableText, {
           block: ({children}) => `# ${children}`,
         }),
-      ).toBe('# foo  \nbar')
+      ).toBe('# foo<br>bar')
     })
 
     test('an h2 with a hard break keeps the ATX heading with a custom hard break', () => {
@@ -3107,7 +4354,7 @@ describe(portableTextToMarkdown.name, () => {
       ]
       expect(
         portableTextToMarkdown(portableText, {blockSpacing: () => '\n\n'}),
-      ).toBe('## foo  \nbar')
+      ).toBe('## foo<br>bar')
     })
 
     test('an h2 list item with a hard break keeps the ATX heading', () => {
@@ -3125,7 +4372,7 @@ describe(portableTextToMarkdown.name, () => {
           markDefs: [],
         },
       ]
-      expect(portableTextToMarkdown(portableText)).toBe('- ## foo  \nbar')
+      expect(portableTextToMarkdown(portableText)).toBe('- ## foo<br>bar')
     })
 
     test('an h2 with a hard break keeps the ATX heading when its first line is empty', () => {
@@ -3141,7 +4388,7 @@ describe(portableTextToMarkdown.name, () => {
           markDefs: [],
         },
       ]
-      expect(portableTextToMarkdown(portableText)).toBe('##   \nfoo')
+      expect(portableTextToMarkdown(portableText)).toBe('## <br>foo')
     })
 
     test('an h2 with a hard break keeps the ATX heading when its last line is empty', () => {
@@ -3157,7 +4404,7 @@ describe(portableTextToMarkdown.name, () => {
           markDefs: [],
         },
       ]
-      expect(portableTextToMarkdown(portableText)).toBe('## foo  \n')
+      expect(portableTextToMarkdown(portableText)).toBe('## foo<br>')
     })
 
     test('an h2 with a hard break keeps the ATX heading inside an HTML block the previous block leaves open', () => {
@@ -3175,7 +4422,7 @@ describe(portableTextToMarkdown.name, () => {
         },
       ]
       expect(portableTextToMarkdown(portableText)).toBe(
-        '<pre>\n\n## foo  \nbar',
+        '<pre>\n\n## foo<br>bar',
       )
     })
   })
@@ -8440,31 +9687,20 @@ describe(portableTextToMarkdown.name, () => {
       })
 
       describe('a heading with a hard break in its text', () => {
-        test("only the first line is inside the heading's `# ` prefix", () => {
+        test('all lines stay inside the ATX heading', () => {
           const portableText = [leavesBlock(['a\n- b'], {style: 'h3'})]
 
           const markdown = portableTextToMarkdown(portableText)
-          expect(markdown).toBe('### a  \n\\- b')
+          expect(markdown).toBe('### a<br>- b')
 
           const reparsed = markdownToPortableText(markdown)
-          expect(reparsed).toHaveLength(2)
-          const [heading, continuation] = reparsed
-          if (
-            heading === undefined ||
-            continuation === undefined ||
-            !isPortableTextBlock(heading) ||
-            !isPortableTextBlock(continuation)
-          ) {
-            throw new Error('Expected two portable text blocks')
+          expect(reparsed).toHaveLength(1)
+          const [heading] = reparsed
+          if (!heading || !isPortableTextBlock(heading)) {
+            throw new Error('Expected a heading')
           }
           expect(heading.style).toBe('h3')
-          expect(blockText(heading)).toBe('a')
-          // The second raw line is no longer inside the heading's `# `
-          // prefix, so it's an ordinary line: it must not misparse as a
-          // bullet list item, and its text (the hard break's continuation)
-          // must survive.
-          expect(isPortableTextListItemBlock(continuation)).toBe(false)
-          expect(blockText(continuation)).toBe('- b')
+          expect(blockText(heading)).toBe('a\n- b')
         })
       })
 

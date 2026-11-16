@@ -27,6 +27,7 @@ import {
   consumeListItemFirstBlock,
   markListItemFirstBlock,
 } from './list-item-first-block'
+import {DefaultHardBreakRenderer} from './renderers/hard-break'
 import {DefaultUnknownListItemRenderer} from './renderers/list-item'
 import {DefaultUnknownMarkRenderer} from './renderers/marks'
 import {
@@ -34,6 +35,7 @@ import {
   DefaultH2Renderer,
   DefaultUnknownStyleRenderer,
 } from './renderers/style'
+import {consumeCellParagraph, tagHardBreak} from './tag-hard-break'
 import type {PortableTextRenderers, RenderNode, Serializable} from './types'
 
 type ReportDegradation = (
@@ -46,11 +48,8 @@ type ReportDegradation = (
 ) => void
 
 /**
- * ATX headings are single-line, inline-only leaf blocks: an ATX heading's
- * first line sits inside its `# ` prefix and can never be reparsed as a
- * block construct, so line-leading hazards never apply there. A hard
- * break's later lines are ordinary markdown lines outside that prefix and
- * get the full line-start battery, same as any other block's continuation.
+ * With default breaks, ATX heading text stays on one Markdown line, so
+ * the whole line shares the heading's block-marker protection.
  */
 const HEADING_STYLES = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
 
@@ -91,6 +90,8 @@ export const createRenderNode = (
   // rendered output, and `planLeafEscaping` needs to know that up front.
   const hardBreakOutputHasNewline = renderers.hardBreak().includes('\n')
 
+  let currentTagBreak: 'heading' | 'cell' | undefined
+
   // The text block whose children are being rendered, so a mark
   // degradation can name the block that held the span: a marks-tree
   // `@span` wrapper keeps only the span's `_key`, which sibling table
@@ -108,7 +109,9 @@ export const createRenderNode = (
     const chunks = planLeafEscaping(node.children ?? [], node.markDefs ?? [], {
       isHeading,
       isListItem,
-      hardBreakOutputHasNewline,
+      hardBreakIsTag: currentTagBreak !== undefined,
+      hardBreakOutputHasNewline:
+        currentTagBreak === undefined && hardBreakOutputHasNewline,
     })
     const tree = buildMarksTree(node)
     assignEscapedText(tree, chunks)
@@ -311,11 +314,25 @@ export const createRenderNode = (
       toPlainText(node).includes('\n')
         ? SETEXT_UNDERLINES.get(handler)
         : undefined
-    const children = renderBlockChildren(
-      node,
-      HEADING_STYLES.has(style) && setextUnderline === undefined,
-      isListItem,
-    )
+    const cell = consumeCellParagraph(node)
+    const enclosingTagBreak = currentTagBreak
+    currentTagBreak =
+      renderers.hardBreak === DefaultHardBreakRenderer &&
+      (cell || (HEADING_STYLES.has(style) && setextUnderline === undefined))
+        ? cell
+          ? 'cell'
+          : 'heading'
+        : undefined
+    let children: string
+    try {
+      children = renderBlockChildren(
+        node,
+        HEADING_STYLES.has(style) && setextUnderline === undefined,
+        isListItem,
+      )
+    } finally {
+      currentTagBreak = enclosingTagBreak
+    }
     const block = handler || renderers.unknownBlockStyle
 
     if (
@@ -341,6 +358,9 @@ export const createRenderNode = (
 
   function renderText(node: ToolkitTextNode): string {
     if (node.text === '\n') {
+      if (currentTagBreak !== undefined) {
+        return tagHardBreak(currentTagBreak === 'cell')
+      }
       return backslashBreakNodes.has(node) ? '\\\n' : renderers.hardBreak()
     }
 

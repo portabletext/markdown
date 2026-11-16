@@ -745,6 +745,205 @@ describe(markdownToPortableText.name, () => {
   })
 
   describe('hard breaks', () => {
+    test('break tags separate an automatic URL and email', () => {
+      expect(
+        markdownToPortableText('https://example.com<br>support@example.com', {
+          keyGenerator: createTestKeyGenerator(),
+        }),
+      ).toEqual([
+        {
+          _type: 'block',
+          _key: 'k0',
+          style: 'normal',
+          markDefs: [
+            {_type: 'link', _key: 'k1', href: 'https://example.com'},
+            {_type: 'link', _key: 'k4', href: 'mailto:support@example.com'},
+          ],
+          children: [
+            {
+              _type: 'span',
+              _key: 'k2',
+              text: 'https://example.com',
+              marks: ['k1'],
+            },
+            {_type: 'span', _key: 'k3', text: '\n', marks: []},
+            {
+              _type: 'span',
+              _key: 'k5',
+              text: 'support@example.com',
+              marks: ['k4'],
+            },
+          ],
+        },
+      ])
+    })
+
+    test('break tags read with skip policy', () => {
+      expect(
+        omitKeys(
+          markdownToPortableText('foo<br>bar', {html: {inline: 'skip'}}),
+        ),
+      ).toEqual([
+        {
+          _type: 'block',
+          style: 'normal',
+          markDefs: [],
+          children: [{_type: 'span', text: 'foo\nbar', marks: []}],
+        },
+      ])
+    })
+    test('break tags read with text policy', () => {
+      expect(
+        omitKeys(
+          markdownToPortableText('foo<br>bar', {html: {inline: 'text'}}),
+        ),
+      ).toEqual([
+        {
+          _type: 'block',
+          style: 'normal',
+          markDefs: [],
+          children: [{_type: 'span', text: 'foo\nbar', marks: []}],
+        },
+      ])
+    })
+    test('break tags read with spaced tag', () => {
+      expect(omitKeys(markdownToPortableText('foo<br />bar', {}))).toEqual([
+        {
+          _type: 'block',
+          style: 'normal',
+          markDefs: [],
+          children: [{_type: 'span', text: 'foo\nbar', marks: []}],
+        },
+      ])
+    })
+    test('break tags read with uppercase tag', () => {
+      expect(omitKeys(markdownToPortableText('foo<BR>bar', {}))).toEqual([
+        {
+          _type: 'block',
+          style: 'normal',
+          markDefs: [],
+          children: [{_type: 'span', text: 'foo\nbar', marks: []}],
+        },
+      ])
+    })
+    test('break tags read with compact tag', () => {
+      expect(omitKeys(markdownToPortableText('foo<br/>bar', {}))).toEqual([
+        {
+          _type: 'block',
+          style: 'normal',
+          markDefs: [],
+          children: [{_type: 'span', text: 'foo\nbar', marks: []}],
+        },
+      ])
+    })
+    test('break tags read with callout', () => {
+      expect(
+        omitKeys(markdownToPortableText('> [!NOTE]\n> foo<br>bar', {})),
+      ).toEqual([
+        {
+          _type: 'callout',
+          tone: 'note',
+          content: [
+            {
+              _type: 'block',
+              style: 'blockquote',
+              markDefs: [],
+              children: [{_type: 'span', text: 'foo\nbar', marks: []}],
+            },
+          ],
+        },
+      ])
+    })
+    test('break tags read with cell', () => {
+      expect(
+        omitKeys(markdownToPortableText('| foo<br />bar |\n| --- |', {})),
+      ).toEqual([
+        {
+          _type: 'table',
+          headerRows: 1,
+          rows: [
+            {
+              _type: 'row',
+              cells: [
+                {
+                  _type: 'cell',
+                  value: [
+                    {
+                      _type: 'block',
+                      style: 'normal',
+                      markDefs: [],
+                      children: [{_type: 'span', text: 'foo\nbar', marks: []}],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ])
+    })
+    test('break tags retain a header containing only a break', () => {
+      expect(omitKeys(markdownToPortableText('| <br /> |\n| --- |'))).toEqual([
+        {
+          _type: 'table',
+          headerRows: 1,
+          rows: [
+            {
+              _type: 'row',
+              cells: [
+                {
+                  _type: 'cell',
+                  value: [
+                    {
+                      _type: 'block',
+                      style: 'normal',
+                      markDefs: [],
+                      children: [{_type: 'span', text: '\n', marks: []}],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ])
+    })
+
+    test('break tags read with cell separator control', () => {
+      expect(
+        omitKeys(markdownToPortableText('| foo<br><br>bar |\n| --- |', {})),
+      ).toEqual([
+        {
+          _type: 'table',
+          headerRows: 1,
+          rows: [
+            {
+              _type: 'row',
+              cells: [
+                {
+                  _type: 'cell',
+                  value: [
+                    {
+                      _type: 'block',
+                      style: 'normal',
+                      markDefs: [],
+                      children: [{_type: 'span', text: 'foo', marks: []}],
+                    },
+                    {
+                      _type: 'block',
+                      style: 'normal',
+                      markDefs: [],
+                      children: [{_type: 'span', text: 'bar', marks: []}],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ])
+    })
+
     test('backslash syntax', () => {
       const keyGenerator = createTestKeyGenerator()
       expect(markdownToPortableText('foo\\\nbar', {keyGenerator})).toEqual([
@@ -6768,7 +6967,7 @@ describe(markdownToPortableText.name, () => {
                           {
                             _type: 'span',
                             _key: 'k1',
-                            text: 'ab',
+                            text: 'a\nb',
                             marks: [],
                           },
                         ],
@@ -6796,7 +6995,7 @@ describe(markdownToPortableText.name, () => {
               {
                 _type: 'span',
                 _key: 'k1',
-                text: 'ab',
+                text: 'a\n\nb',
                 marks: [],
               },
             ],
@@ -10961,7 +11160,7 @@ describe(markdownToPortableText.name, () => {
       ])
     })
 
-    test('inline HTML dropped: default `skip` mode', () => {
+    test('a bare br is a break in default `skip` mode', () => {
       const keyGenerator = createTestKeyGenerator()
       const onDegradation = vi.fn<(report: DegradationReport) => void>()
 
@@ -10974,25 +11173,18 @@ describe(markdownToPortableText.name, () => {
         {
           _type: 'block',
           _key: 'k0',
-          children: [{_type: 'span', _key: 'k1', text: 'foo  bar', marks: []}],
+          children: [
+            {_type: 'span', _key: 'k1', text: 'foo \n bar', marks: []},
+          ],
           markDefs: [],
           style: 'normal',
         },
       ])
 
-      expect(onDegradation).toHaveBeenCalledTimes(1)
-      expect(onDegradation.mock.calls[0]![0]!.degradations).toEqual([
-        {
-          type: 'inline-html-dropped',
-          message:
-            'Removed inline HTML tags, kept nothing: `html.inline` is `skip` (the default)',
-          line: 1,
-          snippet: '<br/>',
-        },
-      ])
+      expect(onDegradation).not.toHaveBeenCalled()
     })
 
-    test('inline HTML in `text` mode: no degradation, no event', () => {
+    test('a bare br is a break in `text` mode', () => {
       const keyGenerator = createTestKeyGenerator()
       const onDegradation = vi.fn<(report: DegradationReport) => void>()
 
@@ -11007,7 +11199,37 @@ describe(markdownToPortableText.name, () => {
           _type: 'block',
           _key: 'k0',
           children: [
-            {_type: 'span', _key: 'k1', text: 'foo <br/> bar', marks: []},
+            {_type: 'span', _key: 'k1', text: 'foo \n bar', marks: []},
+          ],
+          markDefs: [],
+          style: 'normal',
+        },
+      ])
+
+      expect(onDegradation).not.toHaveBeenCalled()
+    })
+
+    test('inline HTML in `text` mode: no degradation, no event', () => {
+      const keyGenerator = createTestKeyGenerator()
+      const onDegradation = vi.fn<(report: DegradationReport) => void>()
+
+      expect(
+        markdownToPortableText('foo <span>x</span> bar', {
+          keyGenerator,
+          html: {inline: 'text'},
+          onDegradation,
+        }),
+      ).toEqual([
+        {
+          _type: 'block',
+          _key: 'k0',
+          children: [
+            {
+              _type: 'span',
+              _key: 'k1',
+              text: 'foo <span>x</span> bar',
+              marks: [],
+            },
           ],
           markDefs: [],
           style: 'normal',
