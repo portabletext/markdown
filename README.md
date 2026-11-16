@@ -264,7 +264,7 @@ Matchers map Markdown concepts to Portable Text types defined in the Schema. Eac
 
 #### Default behavior
 
-**Tables** (GFM pipe tables) convert by default, in the canonical shape `@portabletext/plugin-table` expects: a `table` block object (`headerRows`, `rows`), each row a `row` object (`cells`), each cell a `cell` object (`value`, an array of Portable Text blocks; a cell holding a single image becomes a standalone block-level `image` object instead of a text block wrapping it). `alignment` is a `@portabletext/markdown` extension field; `@portabletext/plugin-table` ignores it. This needs no configuration when the schema declares a `table` block object with a `rows` field (see `blockObjects` above). A schema whose `table` doesn't declare `rows`, or that doesn't declare `table` at all, produces no table object at all: the table's cell content flattens into top-level blocks, in reading order, and the table structure is discarded.
+**Tables** (GFM pipe tables) convert by default, in the canonical shape `@portabletext/plugin-table` expects: a `table` block object (`headerRows`, `rows`), each row a `row` object (`cells`), each cell a `cell` object (`value`, an array of Portable Text blocks). Each part of a cell that holds only an image becomes a block-level `image` object. `alignment` is a `@portabletext/markdown` extension field; `@portabletext/plugin-table` ignores it. This needs no configuration when the schema declares a `table` block object with a `rows` field (see `blockObjects` above). A schema whose `table` doesn't declare `rows`, or that doesn't declare `table` at all, produces no table object at all: the table's cell content flattens into top-level blocks, in reading order, and the table structure is discarded.
 
 **Images** are handled based on context:
 
@@ -744,7 +744,9 @@ A default renderer (`callout`, `code`, `horizontal-rule`, `html`, `image`, `tabl
 
 The gate reads type names, never field values: declaring a type doesn't validate anything, and a value's fields play no part in which renderer runs. Fields matter on the parse side instead: `markdownToPortableText` filters a construct down to its declared fields, so declare each type with the fields its values carry, or the markdown forms this gate lets through come back rebuilt without them.
 
-An undeclared type falls back to `unknownType`, whose default output is the same `json:object` fence or tagged code span described above, so it round-trips at block and inline positions. Inside a table cell the `json:object` form is the inline code span (a GFM cell is one line, and a fence would be squashed), so an undeclared object in a cell survives too; declared types whose markdown form spans multiple lines (a code block in a cell) still flatten on reparse. Renderers you register in `types` bypass the gate entirely, whether or not the schema declares them.
+An undeclared type falls back to `unknownType`, whose default output is the same `json:object` fence or tagged code span described above, so it round-trips at block and inline positions. Renderers you register in `types` bypass the gate entirely, whether or not the schema declares them.
+
+In a table cell, a plain paragraph and an image are written as Markdown. A plain paragraph has the `normal` style and is not a list item. Other blocks in a cell are written as the one-line `json:object` tagged code span holding the whole block, including nested content and keys. Blocks in a cell are separated by `<br><br>`. A cell with one plain paragraph, only an image or only an unknown object is written exactly as before. Any other block in a cell is written as JSON, and custom renderers in `types`, `block`, `listItem` and `unknownType` are not called for it. An image in a cell still uses `types.image`.
 
 Without a `schema`, every default renderer stays active.
 

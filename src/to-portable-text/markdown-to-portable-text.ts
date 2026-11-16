@@ -2,11 +2,13 @@ import {alert} from '@mdit/plugin-alert'
 import {
   isSpan,
   isTextBlock,
+  isTypedObject,
   type PortableTextBlock,
   type PortableTextObject,
   type PortableTextTextBlock,
   type Schema,
 } from '@portabletext/schema'
+import {isPortableTextBlock} from '@portabletext/toolkit'
 import markdownit from 'markdown-it'
 import type {Token} from 'markdown-it'
 import {
@@ -764,6 +766,89 @@ function convertMarkdown(
     })
   }
 
+  const validateCarriedTextBlock = (
+    block: PortableTextTextBlock,
+    source: {line: number | undefined; snippet: string | undefined},
+  ) => {
+    const context = {schema: consolidatedOptions.schema}
+    const text = block.children
+      .filter((child) => isSpan(context, child))
+      .map((child) => child.text)
+      .join('')
+    const style = block.style ?? 'normal'
+    if (!buildStyleMatcher({name: style})({context})) {
+      reportStyleFallback(style, source.line, text)
+      block.style = consolidatedOptions.block.normal({context}) ?? 'normal'
+    }
+    if (
+      block.listItem &&
+      !buildListItemMatcher({name: block.listItem})({context})
+    ) {
+      report({
+        type: 'list-flattened',
+        message: degradationMessage['list-flattened'](
+          block.listItem === 'number' ? 'number' : 'bullet',
+        ),
+        line: source.line,
+      })
+      delete block.listItem
+      delete block.level
+    }
+    const droppedMarks = new Set<string>()
+    block.markDefs = (block.markDefs ?? []).filter((markDef) => {
+      if (
+        context.schema.annotations.some((item) => item.name === markDef._type)
+      ) {
+        return true
+      }
+      droppedMarks.add(markDef._key)
+      report({
+        type: 'annotation-dropped',
+        message: degradationMessage['annotation-dropped']('no-annotation'),
+        line: source.line,
+        snippet: truncateSnippet(text),
+      })
+      return false
+    })
+    for (const child of block.children) {
+      if (!isSpan(context, child)) {
+        reportUndeclaredObjectType(
+          child as PortableTextObject,
+          'inline',
+          source,
+        )
+        continue
+      }
+      child.marks = (child.marks ?? []).filter((mark) => {
+        if (droppedMarks.has(mark)) {
+          return false
+        }
+        if (
+          block.markDefs?.some((markDef) => markDef._key === mark) ||
+          buildDecoratorMatcher({name: mark})({context})
+        ) {
+          return true
+        }
+        const decorator = mark === 'strike-through' ? 'strikeThrough' : mark
+        if (
+          decorator === 'code' ||
+          decorator === 'strong' ||
+          decorator === 'em' ||
+          decorator === 'strikeThrough' ||
+          decorator === 'underline'
+        ) {
+          report({
+            type: 'decorator-dropped',
+            message: degradationMessage['decorator-dropped'](decorator),
+            line: source.line,
+            snippet: truncateSnippet(text),
+          })
+        }
+        return false
+      })
+    }
+  }
+
   const md = markdownit({
     html: true,
     linkify: true,
@@ -908,6 +993,10 @@ function convertMarkdown(
     value: Array<PortableTextBlock>
   }> | null = null
   let inTableHead = false
+  let cellStart: {
+    target: Array<PortableTextBlock | PortableTextObject>
+    index: number
+  } | null = null
   // Images demoted from block-level to inline while pushed into a table
   // cell (see the `inline` case). `td_close`/`th_close` may lift a sole
   // image child back to block-level losslessly; membership here lets that
@@ -1018,6 +1107,8 @@ function convertMarkdown(
     currentBlockIsPlainParagraph = provenance?.isPlainParagraph ?? false
   }
 
+  const splitCellBlocks = new WeakSet<PortableTextTextBlock>()
+
   const flushBlock = () => {
     if (!currentBlock) {
       return
@@ -1053,7 +1144,15 @@ function convertMarkdown(
     }
 
     // Assign accumulated markDefs to the block
-    currentBlock.markDefs = currentMarkDefs
+    currentBlock.markDefs = splitCellBlocks.has(currentBlock)
+      ? currentMarkDefs.filter((markDef) =>
+          currentBlock?.children.some(
+            (child) =>
+              isSpan({schema: consolidatedOptions.schema}, child) &&
+              child.marks?.includes(markDef._key),
+          ),
+        )
+      : currentMarkDefs
 
     if (currentBlockIsPlainParagraph) {
       plainParagraphBlocks.add(currentBlock)
@@ -2107,6 +2206,8 @@ function convertMarkdown(
           )
         }
 
+        cellStart = {target: blockTarget(), index: blockTarget().length}
+
         // Start a new block for the table cell
         const style = consolidatedOptions.block.normal({
           context: {schema: consolidatedOptions.schema},
@@ -2127,20 +2228,14 @@ function convertMarkdown(
         flushBlock()
 
         // Get all blocks that were added since this cell started
-        // We need to extract them from the current target array
         const cellBlocks: Array<PortableTextBlock> = []
-        const target = blockTarget()
-
-        // Check if we have blocks to extract (added after table_open)
-        if (target.length > 0) {
-          const lastBlock = target.at(-1)
-          if (
-            lastBlock &&
-            isTextBlock({schema: consolidatedOptions.schema}, lastBlock)
-          ) {
-            target.pop()
-            cellBlocks.push(lastBlock)
-          }
+        if (cellStart) {
+          cellBlocks.push(
+            ...(cellStart.target.splice(
+              cellStart.index,
+            ) as Array<PortableTextBlock>),
+          )
+          cellStart = null
         }
 
         // If no blocks were created (empty cell), create an empty block
@@ -2184,22 +2279,15 @@ function convertMarkdown(
           }
         }
 
-        // A cell holding one block whose only child is an object (not a
-        // span) lifts that object to block position, unless the schema
-        // declares the type inline-only: that type has a legal inline home,
-        // so the block reading would manufacture a placement the schema
-        // forbids. Everything else (declared block, declared both, or
-        // undeclared) reads as block, matching PT's table model where
-        // `cell.value` is an array of blocks.
-        const firstBlock = cellBlocks[0]
-        let liftedObject: PortableTextObject | undefined
-        if (
-          cellBlocks.length === 1 &&
-          firstBlock &&
-          isTextBlock({schema: consolidatedOptions.schema}, firstBlock) &&
-          firstBlock.children.length === 1
-        ) {
-          const onlyChild = firstBlock.children[0]
+        const liftedObjects = new Set<PortableTextObject>()
+        for (const [blockIndex, cellBlock] of cellBlocks.entries()) {
+          if (
+            !isTextBlock({schema: consolidatedOptions.schema}, cellBlock) ||
+            cellBlock.children.length !== 1
+          ) {
+            continue
+          }
+          const onlyChild = cellBlock.children[0]
           if (
             typeof onlyChild === 'object' &&
             onlyChild !== null &&
@@ -2214,8 +2302,8 @@ function convertMarkdown(
               (blockObject) => blockObject.name === onlyChild._type,
             )
             if (!(declaredInline && !declaredBlock)) {
-              cellBlocks[0] = onlyChild as PortableTextBlock
-              liftedObject = onlyChild as PortableTextObject
+              cellBlocks[blockIndex] = onlyChild as PortableTextBlock
+              liftedObjects.add(onlyChild as PortableTextObject)
             }
           }
         }
@@ -2224,7 +2312,7 @@ function convertMarkdown(
         // child of the cell's text block: report it now that the verdict is
         // known, instead of at demotion time.
         for (const demotedImage of demotedInlineImages) {
-          if (demotedImage !== liftedObject) {
+          if (!liftedObjects.has(demotedImage)) {
             const {alt, src} = demotedImage as {alt?: string; src?: string}
             report({
               type: 'image-block-to-inline',
@@ -2238,10 +2326,35 @@ function convertMarkdown(
         }
 
         for (const block of cellBlocks) {
-          if (block === liftedObject) {
-            const carrierSource = tableCellObjectCarriers.get(liftedObject)
+          if (liftedObjects.has(block as PortableTextObject)) {
+            const carrierSource = tableCellObjectCarriers.get(
+              block as PortableTextObject,
+            )
             if (carrierSource) {
-              reportUndeclaredObjectType(liftedObject, 'block', carrierSource)
+              if (
+                isTextBlock({schema: consolidatedOptions.schema}, block) &&
+                Array.isArray(block.children) &&
+                block.children.every(isTypedObject) &&
+                (block.markDefs === undefined ||
+                  (Array.isArray(block.markDefs) &&
+                    block.markDefs.every(isTypedObject))) &&
+                isPortableTextBlock(block) &&
+                block.children.every(
+                  (child) =>
+                    !isSpan({schema: consolidatedOptions.schema}, child) ||
+                    child.marks === undefined ||
+                    (Array.isArray(child.marks) &&
+                      child.marks.every((mark) => typeof mark === 'string')),
+                )
+              ) {
+                validateCarriedTextBlock(block, carrierSource)
+              } else {
+                reportUndeclaredObjectType(
+                  block as PortableTextObject,
+                  'block',
+                  carrierSource,
+                )
+              }
             }
             continue
           }
@@ -2840,6 +2953,32 @@ function convertMarkdown(
               break
             }
             case 'html_inline': {
+              if (
+                inTableCell &&
+                childToken.content === '<br>' &&
+                inlineChildren[childIndex + 1]?.type === 'html_inline' &&
+                inlineChildren[childIndex + 1]?.content === '<br>'
+              ) {
+                const openMarkDefs = currentMarkDefs.filter((markDef) =>
+                  markDefRefs.includes(markDef._key),
+                )
+                if (currentBlock) {
+                  splitCellBlocks.add(currentBlock)
+                }
+                flushBlock()
+                startBlock(
+                  consolidatedOptions.block.normal({
+                    context: {schema: consolidatedOptions.schema},
+                  }) || 'normal',
+                )
+                if (currentBlock) {
+                  splitCellBlocks.add(currentBlock)
+                }
+                currentMarkDefs = openMarkDefs.map((markDef) => ({...markDef}))
+                childIndex++
+                break
+              }
+
               const underlineCloseIndex =
                 underlineCloseByOpenIndex.get(childIndex)
 

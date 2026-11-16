@@ -4941,6 +4941,1300 @@ describe(portableTextToMarkdown.name, () => {
   })
 
   describe('tables', () => {
+    describe('cell blocks', () => {
+      test('uses the default table renderer registered by hand with a custom schema', () => {
+        const schema = compileSchema(
+          defineSchema({
+            blockObjects: [
+              defaultTableObjectDefinition,
+              defaultCodeObjectDefinition,
+            ],
+          }),
+        )
+        const value = [
+          {
+            _type: 'table',
+            _key: 't',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'r',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'c',
+                    value: [
+                      {_type: 'code', _key: 'code', language: 'js', code: 'x'},
+                      {
+                        _type: 'block',
+                        _key: 'b',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {_type: 'span', _key: 's', text: 'p', marks: []},
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ]
+        expect(
+          portableTextToMarkdown(value, {
+            schema,
+            types: {table: DefaultTableRenderer},
+          }),
+        ).toEqual(portableTextToMarkdown(value, {schema}))
+      })
+
+      test('uses a custom unknownType for an object alone in a table cell', () => {
+        const value = [
+          {
+            _type: 'table',
+            _key: 't',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'r',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'c',
+                    value: [
+                      {
+                        _type: 'foo',
+                        _key: 'f',
+                        x: 1,
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ]
+        expect(
+          portableTextToMarkdown(value, {
+            unknownType: ({value}) =>
+              `<foo x=${(value as {_type: string; x: number}).x}>`,
+          }),
+        ).toBe('| <foo x=1> |\n| --- |')
+      })
+
+      test('preserves a trailing backslash before code in a table cell', () => {
+        const value = [
+          {
+            _type: 'table',
+            _key: 't',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'r',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'c',
+                    value: [
+                      {
+                        _type: 'block',
+                        _key: 'a',
+                        style: 'normal',
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'as',
+                            text: 'a\\',
+                            marks: [],
+                          },
+                        ],
+                        markDefs: [],
+                      },
+                      {
+                        _type: 'code',
+                        _key: 'cd',
+                        language: 'js',
+                        code: 'x',
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ]
+        const markdown = portableTextToMarkdown(value)
+        expect(markdown).toBe(
+          '| a\\\\<br><br>json:object`{"_type":"code","_key":"cd","language":"js","code":"x"}` |\n| --- |',
+        )
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator: createTestKeyGenerator(),
+          }),
+        ).toEqual([
+          {
+            _key: 'k5',
+            _type: 'table',
+            headerRows: 1,
+            rows: [
+              {
+                _key: 'k4',
+                _type: 'row',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k3',
+                    value: [
+                      {
+                        _type: 'block',
+                        style: 'normal',
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k1',
+                            text: 'a\\',
+                            marks: [],
+                          },
+                        ],
+                        _key: 'k0',
+                        markDefs: [],
+                      },
+                      {
+                        _type: 'code',
+                        _key: 'cd',
+                        language: 'js',
+                        code: 'x',
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ])
+      })
+
+      test('preserves a trailing backslash before a paragraph in a table cell', () => {
+        const value = [
+          {
+            _type: 'table',
+            _key: 't',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'r',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'c',
+                    value: [
+                      {
+                        _type: 'block',
+                        _key: 'a',
+                        style: 'normal',
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'as',
+                            text: 'a\\',
+                            marks: [],
+                          },
+                        ],
+                        markDefs: [],
+                      },
+                      {
+                        _type: 'block',
+                        _key: 'b',
+                        style: 'normal',
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'bs',
+                            text: 'c',
+                            marks: [],
+                          },
+                        ],
+                        markDefs: [],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ]
+        const markdown = portableTextToMarkdown(value)
+        expect(markdown).toBe('| a\\\\<br><br>c |\n| --- |')
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator: createTestKeyGenerator(),
+          }),
+        ).toEqual([
+          {
+            _key: 'k6',
+            _type: 'table',
+            headerRows: 1,
+            rows: [
+              {
+                _key: 'k5',
+                _type: 'row',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k4',
+                    value: [
+                      {
+                        _type: 'block',
+                        style: 'normal',
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k1',
+                            text: 'a\\',
+                            marks: [],
+                          },
+                        ],
+                        _key: 'k0',
+                        markDefs: [],
+                      },
+                      {
+                        _type: 'block',
+                        style: 'normal',
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k3',
+                            text: 'c',
+                            marks: [],
+                          },
+                        ],
+                        _key: 'k2',
+                        markDefs: [],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ])
+      })
+
+      test('exports code first in a table cell', () => {
+        const value = [
+          {
+            _type: 'table',
+            _key: 'k5',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'k4',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k3',
+                    value: [
+                      {
+                        _type: 'code',
+                        _key: 'code',
+                        language: 'ts',
+                        code: 'const a = 1\nconst b = 2',
+                      },
+                      {
+                        _type: 'block',
+                        _key: 'k1',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k2',
+                            text: 'after',
+                            marks: [],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ]
+        expect(portableTextToMarkdown(value)).toBe(
+          '| json:object`{"_type":"code","_key":"code","language":"ts","code":"const a = 1\\nconst b = 2"}`<br><br>after |\n| --- |',
+        )
+      })
+
+      test('exports code in the middle in a table cell', () => {
+        const value = [
+          {
+            _type: 'table',
+            _key: 'k7',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'k6',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k5',
+                    value: [
+                      {
+                        _type: 'block',
+                        _key: 'k0',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k1',
+                            text: 'before',
+                            marks: [],
+                          },
+                        ],
+                      },
+                      {
+                        _type: 'code',
+                        _key: 'code',
+                        language: 'ts',
+                        code: 'const a = 1\nconst b = 2',
+                      },
+                      {
+                        _type: 'block',
+                        _key: 'k3',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k4',
+                            text: 'after',
+                            marks: [],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ]
+        expect(portableTextToMarkdown(value)).toBe(
+          '| before<br><br>json:object`{"_type":"code","_key":"code","language":"ts","code":"const a = 1\\nconst b = 2"}`<br><br>after |\n| --- |',
+        )
+      })
+
+      test('exports code last in a table cell', () => {
+        const value = [
+          {
+            _type: 'table',
+            _key: 'k5',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'k4',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k3',
+                    value: [
+                      {
+                        _type: 'block',
+                        _key: 'k0',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k1',
+                            text: 'before',
+                            marks: [],
+                          },
+                        ],
+                      },
+                      {
+                        _type: 'code',
+                        _key: 'code',
+                        language: 'ts',
+                        code: 'const a = 1\nconst b = 2',
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ]
+        expect(portableTextToMarkdown(value)).toBe(
+          '| before<br><br>json:object`{"_type":"code","_key":"code","language":"ts","code":"const a = 1\\nconst b = 2"}` |\n| --- |',
+        )
+      })
+
+      test('exports a callout in the middle in a table cell', () => {
+        const value = [
+          {
+            _type: 'table',
+            _key: 'k7',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'k6',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k5',
+                    value: [
+                      {
+                        _type: 'block',
+                        _key: 'k0',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k1',
+                            text: 'before',
+                            marks: [],
+                          },
+                        ],
+                      },
+                      {
+                        _type: 'callout',
+                        _key: 'callout',
+                        tone: 'tip',
+                        content: [
+                          {
+                            _type: 'block',
+                            _key: 'inside',
+                            style: 'normal',
+                            markDefs: [],
+                            children: [
+                              {
+                                _type: 'span',
+                                _key: 'insides',
+                                text: 'inside',
+                                marks: [],
+                              },
+                            ],
+                          },
+                        ],
+                      },
+                      {
+                        _type: 'block',
+                        _key: 'k3',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k4',
+                            text: 'after',
+                            marks: [],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ]
+        expect(portableTextToMarkdown(value)).toBe(
+          '| before<br><br>json:object`{"_type":"callout","_key":"callout","tone":"tip","content":[{"_type":"block","_key":"inside","style":"normal","markDefs":[],"children":[{"_type":"span","_key":"insides","text":"inside","marks":[]}]}]}`<br><br>after |\n| --- |',
+        )
+      })
+
+      test('exports HTML in the middle in a table cell', () => {
+        const value = [
+          {
+            _type: 'table',
+            _key: 'k7',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'k6',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k5',
+                    value: [
+                      {
+                        _type: 'block',
+                        _key: 'k0',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k1',
+                            text: 'before',
+                            marks: [],
+                          },
+                        ],
+                      },
+                      {
+                        _type: 'html',
+                        _key: 'html',
+                        html: '<div>inside</div>',
+                      },
+                      {
+                        _type: 'block',
+                        _key: 'k3',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k4',
+                            text: 'after',
+                            marks: [],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ]
+        expect(portableTextToMarkdown(value)).toBe(
+          '| before<br><br>json:object`{"_type":"html","_key":"html","html":"<div>inside</div>"}`<br><br>after |\n| --- |',
+        )
+      })
+
+      test('exports a horizontal rule in the middle in a table cell', () => {
+        const value = [
+          {
+            _type: 'table',
+            _key: 'k7',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'k6',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k5',
+                    value: [
+                      {
+                        _type: 'block',
+                        _key: 'k0',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k1',
+                            text: 'before',
+                            marks: [],
+                          },
+                        ],
+                      },
+                      {
+                        _type: 'horizontal-rule',
+                        _key: 'rule',
+                      },
+                      {
+                        _type: 'block',
+                        _key: 'k3',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k4',
+                            text: 'after',
+                            marks: [],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ]
+        expect(portableTextToMarkdown(value)).toBe(
+          '| before<br><br>json:object`{"_type":"horizontal-rule","_key":"rule"}`<br><br>after |\n| --- |',
+        )
+      })
+
+      test('exports a nested table in the middle in a table cell', () => {
+        const value = [
+          {
+            _type: 'table',
+            _key: 'k7',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'k6',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k5',
+                    value: [
+                      {
+                        _type: 'block',
+                        _key: 'k0',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k1',
+                            text: 'before',
+                            marks: [],
+                          },
+                        ],
+                      },
+                      {
+                        _type: 'table',
+                        _key: 'innerTable',
+                        headerRows: 1,
+                        rows: [
+                          {
+                            _type: 'row',
+                            _key: 'innerTablerow',
+                            cells: [
+                              {
+                                _type: 'cell',
+                                _key: 'innerTablecell',
+                                value: [
+                                  {
+                                    _type: 'block',
+                                    _key: 'inner',
+                                    style: 'normal',
+                                    markDefs: [],
+                                    children: [
+                                      {
+                                        _type: 'span',
+                                        _key: 'inners',
+                                        text: 'inner',
+                                        marks: [],
+                                      },
+                                    ],
+                                  },
+                                ],
+                              },
+                            ],
+                          },
+                        ],
+                      },
+                      {
+                        _type: 'block',
+                        _key: 'k3',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k4',
+                            text: 'after',
+                            marks: [],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ]
+        expect(portableTextToMarkdown(value)).toBe(
+          '| before<br><br>json:object`{"_type":"table","_key":"innerTable","headerRows":1,"rows":[{"_type":"row","_key":"innerTablerow","cells":[{"_type":"cell","_key":"innerTablecell","value":[{"_type":"block","_key":"inner","style":"normal","markDefs":[],"children":[{"_type":"span","_key":"inners","text":"inner","marks":[]}]}]}]}]}`<br><br>after |\n| --- |',
+        )
+      })
+
+      test('exports a heading in the middle in a table cell', () => {
+        const value = [
+          {
+            _type: 'table',
+            _key: 'k7',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'k6',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k5',
+                    value: [
+                      {
+                        _type: 'block',
+                        _key: 'k0',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k1',
+                            text: 'before',
+                            marks: [],
+                          },
+                        ],
+                      },
+                      {
+                        _type: 'block',
+                        _key: 'heading',
+                        style: 'h2',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'headings',
+                            text: 'heading',
+                            marks: [],
+                          },
+                        ],
+                      },
+                      {
+                        _type: 'block',
+                        _key: 'k3',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k4',
+                            text: 'after',
+                            marks: [],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ]
+        expect(portableTextToMarkdown(value)).toBe(
+          '| before<br><br>json:object`{"_type":"block","_key":"heading","style":"h2","markDefs":[],"children":[{"_type":"span","_key":"headings","text":"heading","marks":[]}]}`<br><br>after |\n| --- |',
+        )
+      })
+
+      test('exports a blockquote in the middle in a table cell', () => {
+        const value = [
+          {
+            _type: 'table',
+            _key: 'k7',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'k6',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k5',
+                    value: [
+                      {
+                        _type: 'block',
+                        _key: 'k0',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k1',
+                            text: 'before',
+                            marks: [],
+                          },
+                        ],
+                      },
+                      {
+                        _type: 'block',
+                        _key: 'quote',
+                        style: 'blockquote',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'quotes',
+                            text: 'quote',
+                            marks: [],
+                          },
+                        ],
+                      },
+                      {
+                        _type: 'block',
+                        _key: 'k3',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k4',
+                            text: 'after',
+                            marks: [],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ]
+        expect(portableTextToMarkdown(value)).toBe(
+          '| before<br><br>json:object`{"_type":"block","_key":"quote","style":"blockquote","markDefs":[],"children":[{"_type":"span","_key":"quotes","text":"quote","marks":[]}]}`<br><br>after |\n| --- |',
+        )
+      })
+
+      test('exports a list item in the middle in a table cell', () => {
+        const value = [
+          {
+            _type: 'table',
+            _key: 'k7',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'k6',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k5',
+                    value: [
+                      {
+                        _type: 'block',
+                        _key: 'k0',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k1',
+                            text: 'before',
+                            marks: [],
+                          },
+                        ],
+                      },
+                      {
+                        _type: 'block',
+                        _key: 'item',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'items',
+                            text: 'item',
+                            marks: [],
+                          },
+                        ],
+                        listItem: 'bullet',
+                        level: 1,
+                      },
+                      {
+                        _type: 'block',
+                        _key: 'k3',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k4',
+                            text: 'after',
+                            marks: [],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ]
+        expect(portableTextToMarkdown(value)).toBe(
+          '| before<br><br>json:object`{"_type":"block","_key":"item","style":"normal","markDefs":[],"children":[{"_type":"span","_key":"items","text":"item","marks":[]}],"listItem":"bullet","level":1}`<br><br>after |\n| --- |',
+        )
+      })
+
+      test('exports a second paragraph in the middle in a table cell', () => {
+        const value = [
+          {
+            _type: 'table',
+            _key: 'k8',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'k7',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k6',
+                    value: [
+                      {
+                        _type: 'block',
+                        _key: 'k0',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k1',
+                            text: 'before',
+                            marks: [],
+                          },
+                        ],
+                      },
+                      {
+                        _type: 'block',
+                        _key: 'k2',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k3',
+                            text: 'second',
+                            marks: [],
+                          },
+                        ],
+                      },
+                      {
+                        _type: 'block',
+                        _key: 'k4',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k5',
+                            text: 'after',
+                            marks: [],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ]
+        expect(portableTextToMarkdown(value)).toBe(
+          '| before<br><br>second<br><br>after |\n| --- |',
+        )
+      })
+
+      test('exports a table inside a callout with code in a cell', () => {
+        const value = [
+          {
+            _type: 'callout',
+            _key: 'k8',
+            tone: 'tip',
+            content: [
+              {
+                _type: 'table',
+                _key: 'k7',
+                headerRows: 1,
+                rows: [
+                  {
+                    _type: 'row',
+                    _key: 'k6',
+                    cells: [
+                      {
+                        _type: 'cell',
+                        _key: 'k5',
+                        value: [
+                          {
+                            _type: 'block',
+                            _key: 'k0',
+                            style: 'normal',
+                            markDefs: [],
+                            children: [
+                              {
+                                _type: 'span',
+                                _key: 'k1',
+                                text: 'before',
+                                marks: [],
+                              },
+                            ],
+                          },
+                          {
+                            _type: 'code',
+                            _key: 'code',
+                            language: 'ts',
+                            code: 'const a = 1\nconst b = 2',
+                          },
+                          {
+                            _type: 'block',
+                            _key: 'k3',
+                            style: 'normal',
+                            markDefs: [],
+                            children: [
+                              {
+                                _type: 'span',
+                                _key: 'k4',
+                                text: 'after',
+                                marks: [],
+                              },
+                            ],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ]
+        expect(portableTextToMarkdown(value)).toBe(
+          '> [!TIP]\n> | before<br><br>json:object`{"_type":"code","_key":"code","language":"ts","code":"const a = 1\\nconst b = 2"}`<br><br>after |\n> | --- |',
+        )
+      })
+
+      test('exports a callout holding code alone in a table cell', () => {
+        const value = [
+          {
+            _type: 'table',
+            _key: 'k3',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'k2',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k1',
+                    value: [
+                      {
+                        _type: 'callout',
+                        _key: 'callout',
+                        tone: 'tip',
+                        content: [
+                          {
+                            _type: 'code',
+                            _key: 'code',
+                            language: 'ts',
+                            code: 'const a = 1\nconst b = 2',
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ]
+        expect(portableTextToMarkdown(value)).toBe(
+          '| json:object`{"_type":"callout","_key":"callout","tone":"tip","content":[{"_type":"code","_key":"code","language":"ts","code":"const a = 1\\nconst b = 2"}]}` |\n| --- |',
+        )
+      })
+
+      test('exports a table holding code alone in a table cell', () => {
+        const value = [
+          {
+            _type: 'table',
+            _key: 'k3',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'k2',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k1',
+                    value: [
+                      {
+                        _type: 'table',
+                        _key: 'nested',
+                        headerRows: 1,
+                        rows: [
+                          {
+                            _type: 'row',
+                            _key: 'nestedrow',
+                            cells: [
+                              {
+                                _type: 'cell',
+                                _key: 'nestedcell',
+                                value: [
+                                  {
+                                    _type: 'block',
+                                    _key: 'intro',
+                                    style: 'normal',
+                                    markDefs: [],
+                                    children: [
+                                      {
+                                        _type: 'span',
+                                        _key: 'intros',
+                                        text: 'before',
+                                        marks: [],
+                                      },
+                                    ],
+                                  },
+                                  {
+                                    _type: 'code',
+                                    _key: 'code',
+                                    language: 'ts',
+                                    code: 'const a = 1\nconst b = 2',
+                                  },
+                                  {
+                                    _type: 'block',
+                                    _key: 'after',
+                                    style: 'normal',
+                                    markDefs: [],
+                                    children: [
+                                      {
+                                        _type: 'span',
+                                        _key: 'afters',
+                                        text: 'after',
+                                        marks: [],
+                                      },
+                                    ],
+                                  },
+                                ],
+                              },
+                            ],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ]
+        expect(portableTextToMarkdown(value)).toBe(
+          '| json:object`{"_type":"table","_key":"nested","headerRows":1,"rows":[{"_type":"row","_key":"nestedrow","cells":[{"_type":"cell","_key":"nestedcell","value":[{"_type":"block","_key":"intro","style":"normal","markDefs":[],"children":[{"_type":"span","_key":"intros","text":"before","marks":[]}]},{"_type":"code","_key":"code","language":"ts","code":"const a = 1\\nconst b = 2"},{"_type":"block","_key":"after","style":"normal","markDefs":[],"children":[{"_type":"span","_key":"afters","text":"after","marks":[]}]}]}]}]}` |\n| --- |',
+        )
+      })
+    })
+    describe('cell boundary controls', () => {
+      test('preserves a plain table', () => {
+        const value = [
+          {
+            _type: 'table',
+            _key: 'table',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'tablerow',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'tablecell',
+                    value: [
+                      {
+                        _type: 'block',
+                        _key: 'plain',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'plains',
+                            text: 'plain',
+                            marks: [],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ]
+        expect(portableTextToMarkdown(value)).toBe('| plain |\n| --- |')
+      })
+
+      test('preserves an image alone in a table cell', () => {
+        const value = [
+          {
+            _type: 'table',
+            _key: 'table',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'tablerow',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'tablecell',
+                    value: [
+                      {
+                        _type: 'image',
+                        _key: 'image',
+                        src: 'https://example.com/a.png',
+                        alt: 'alt',
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ]
+        expect(portableTextToMarkdown(value)).toBe(
+          '| ![alt](https://example.com/a.png) |\n| --- |',
+        )
+      })
+
+      test('preserves an undeclared object alone in a table cell', () => {
+        const value = [
+          {
+            _type: 'table',
+            _key: 'table',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'tablerow',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'tablecell',
+                    value: [
+                      {
+                        _type: 'widget',
+                        _key: 'widget',
+                        label: 'unknown',
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ]
+        expect(portableTextToMarkdown(value)).toBe(
+          '| json:object`{"_type":"widget","_key":"widget","label":"unknown"}` |\n| --- |',
+        )
+      })
+    })
+
     describe('simple table', () => {
       const keyGenerator = createTestKeyGenerator()
       const markdownIn = [
@@ -5765,14 +7059,14 @@ describe(portableTextToMarkdown.name, () => {
         },
       ]
 
-      test('replaces newlines with <br> so the row stays intact', () => {
+      test('carries the whole code block on one line', () => {
         const result = portableTextToMarkdown(portableText)
 
         expect(result).toBe(
           [
             '| Header |',
             '| --- |',
-            '| ```js<br>const x = 1<br>const y = 2<br>``` |',
+            '| json:object`{"_type":"code","_key":"k7","language":"js","code":"const x = 1\\nconst y = 2"}` |',
           ].join('\n'),
         )
       })
@@ -8476,7 +9770,7 @@ describe(portableTextToMarkdown.name, () => {
       })
     })
 
-    test('nested anchoring: an unknown style on a list item inside a table cell reports the full path down to the item', () => {
+    test('an unknown style on a list item inside a table cell is carried without degradation', () => {
       const keyGenerator = createTestKeyGenerator()
       const onDegradation =
         vi.fn<(report: SerializeDegradationReport) => void>()
@@ -8524,6 +9818,42 @@ describe(portableTextToMarkdown.name, () => {
 
       portableTextToMarkdown(portableText, {onDegradation})
 
+      expect(onDegradation).not.toHaveBeenCalled()
+    })
+
+    test('an unknown style on a structural list item reports its full path', () => {
+      const onDegradation =
+        vi.fn<(report: SerializeDegradationReport) => void>()
+      const value = [
+        {
+          _type: 'list',
+          _key: 'list',
+          kind: 'bullet',
+          items: [
+            {
+              _type: 'list-item',
+              _key: 'item',
+              content: [
+                {
+                  _type: 'block',
+                  _key: 'paragraph',
+                  style: 'fancy',
+                  listItem: 'bullet',
+                  level: 1,
+                  markDefs: [],
+                  children: [
+                    {_type: 'span', _key: 'span', text: 'foo', marks: []},
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ]
+      portableTextToMarkdown(value, {
+        onDegradation,
+        types: {list: DefaultListRenderer},
+      })
       expect(onDegradation).toHaveBeenCalledTimes(1)
       expect(onDegradation.mock.calls[0]![0]).toEqual({
         degradations: [
@@ -8532,21 +9862,17 @@ describe(portableTextToMarkdown.name, () => {
             message:
               'Dropped the `fancy` style, kept the text: no `fancy` block renderer',
             path: [
-              {_key: tableKey},
-              'rows',
-              {_key: rowKey},
-              'cells',
-              {_key: cellKey},
-              'value',
-              {_key: itemKey},
+              {_key: 'list'},
+              'items',
+              {_key: 'item'},
+              'content',
+              {_key: 'paragraph'},
             ],
             snippet: 'foo',
           },
         ],
-        message: [
-          'Portable Text could not be serialized to Markdown without loss:',
-          '- block 0: Dropped the `fancy` style, kept the text: no `fancy` block renderer ("foo")',
-        ].join('\n'),
+        message:
+          'Portable Text could not be serialized to Markdown without loss:\n- block 0: Dropped the `fancy` style, kept the text: no `fancy` block renderer ("foo")',
       })
     })
 
