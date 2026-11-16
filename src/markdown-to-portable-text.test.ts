@@ -1973,6 +1973,682 @@ describe(markdownToPortableText.name, () => {
       })
     })
 
+    describe('links after code blocks without list definitions', () => {
+      test('keeps a link after a code block in a flattened item', () => {
+        const keyGenerator = createTestKeyGenerator()
+        const markdown = [
+          '- item',
+          '',
+          '  ```',
+          '  code',
+          '  ```',
+          '',
+          '  [link](https://example.com) bar',
+        ].join('\n')
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator,
+            schema: compileSchema(
+              defineSchema({
+                styles: [{name: 'normal'}],
+                annotations: [
+                  {name: 'link', fields: [{name: 'href', type: 'string'}]},
+                ],
+              }),
+            ),
+          }),
+        ).toEqual([
+          {
+            _type: 'block',
+            style: 'normal',
+            children: [
+              {
+                _type: 'span',
+                _key: 'k1',
+                text: 'item',
+                marks: [],
+              },
+            ],
+            _key: 'k0',
+            markDefs: [],
+          },
+          {
+            _type: 'block',
+            style: 'normal',
+            children: [
+              {
+                _type: 'span',
+                _key: 'k3',
+                text: 'code',
+                marks: [],
+              },
+            ],
+            _key: 'k2',
+            markDefs: [],
+          },
+          {
+            _type: 'block',
+            style: 'normal',
+            children: [
+              {
+                _type: 'span',
+                _key: 'k6',
+                text: 'link',
+                marks: ['k5'],
+              },
+              {
+                _type: 'span',
+                _key: 'k7',
+                text: ' bar',
+                marks: [],
+              },
+            ],
+            _key: 'k4',
+            markDefs: [
+              {
+                _key: 'k5',
+                _type: 'link',
+                href: 'https://example.com',
+              },
+            ],
+          },
+        ])
+      })
+
+      test('keeps a link after a code block in a nested flattened item', () => {
+        const keyGenerator = createTestKeyGenerator()
+        const markdown = [
+          '- a',
+          '  - item',
+          '',
+          '    ```',
+          '    code',
+          '    ```',
+          '',
+          '    [link](https://example.com) bar',
+        ].join('\n')
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator,
+            schema: compileSchema(
+              defineSchema({
+                styles: [{name: 'normal'}],
+                annotations: [
+                  {name: 'link', fields: [{name: 'href', type: 'string'}]},
+                ],
+              }),
+            ),
+          }),
+        ).toEqual([
+          {
+            _type: 'block',
+            style: 'normal',
+            children: [
+              {
+                _type: 'span',
+                _key: 'k1',
+                text: 'a',
+                marks: [],
+              },
+            ],
+            _key: 'k0',
+            markDefs: [],
+          },
+          {
+            _type: 'block',
+            style: 'normal',
+            children: [
+              {
+                _type: 'span',
+                _key: 'k3',
+                text: 'item',
+                marks: [],
+              },
+            ],
+            _key: 'k2',
+            markDefs: [],
+          },
+          {
+            _type: 'block',
+            style: 'normal',
+            children: [
+              {
+                _type: 'span',
+                _key: 'k5',
+                text: 'code',
+                marks: [],
+              },
+            ],
+            _key: 'k4',
+            markDefs: [],
+          },
+          {
+            _type: 'block',
+            style: 'normal',
+            children: [
+              {
+                _type: 'span',
+                _key: 'k8',
+                text: 'link',
+                marks: ['k7'],
+              },
+              {
+                _type: 'span',
+                _key: 'k9',
+                text: ' bar',
+                marks: [],
+              },
+            ],
+            _key: 'k6',
+            markDefs: [
+              {
+                _key: 'k7',
+                _type: 'link',
+                href: 'https://example.com',
+              },
+            ],
+          },
+        ])
+      })
+
+      test('keeps a link after a code block in a flattened callout list', () => {
+        const keyGenerator = createTestKeyGenerator()
+        const markdown = [
+          '> [!NOTE]',
+          '> - item',
+          '>',
+          '>   ```',
+          '>   code',
+          '>   ```',
+          '>',
+          '>   [link](https://example.com) bar',
+        ].join('\n')
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator,
+            schema: compileSchema(
+              defineSchema({
+                styles: [{name: 'normal'}, {name: 'blockquote'}],
+                annotations: [
+                  {name: 'link', fields: [{name: 'href', type: 'string'}]},
+                ],
+              }),
+            ),
+          }),
+        ).toEqual([
+          {
+            _type: 'block',
+            style: 'blockquote',
+            children: [
+              {
+                _type: 'span',
+                _key: 'k1',
+                text: 'item',
+                marks: [],
+              },
+            ],
+            _key: 'k0',
+            markDefs: [],
+          },
+          {
+            _type: 'block',
+            style: 'normal',
+            children: [
+              {
+                _type: 'span',
+                _key: 'k3',
+                text: 'code',
+                marks: [],
+              },
+            ],
+            _key: 'k2',
+            markDefs: [],
+          },
+          {
+            _type: 'block',
+            style: 'blockquote',
+            children: [
+              {
+                _type: 'span',
+                _key: 'k6',
+                text: 'link',
+                marks: ['k5'],
+              },
+              {
+                _type: 'span',
+                _key: 'k7',
+                text: ' bar',
+                marks: [],
+              },
+            ],
+            _key: 'k4',
+            markDefs: [
+              {
+                _key: 'k5',
+                _type: 'link',
+                href: 'https://example.com',
+              },
+            ],
+          },
+        ])
+      })
+
+      test('does not leak the first link into a second paragraph in a flattened item', () => {
+        const keyGenerator = createTestKeyGenerator()
+        const markdown = [
+          '- item',
+          '',
+          '  ```',
+          '  code',
+          '  ```',
+          '',
+          '  [link](https://example.com) bar',
+          '',
+          '  [b](https://b.com) c',
+        ].join('\n')
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator,
+            schema: compileSchema(
+              defineSchema({
+                styles: [{name: 'normal'}],
+                annotations: [
+                  {name: 'link', fields: [{name: 'href', type: 'string'}]},
+                ],
+              }),
+            ),
+          }),
+        ).toEqual([
+          {
+            _type: 'block',
+            style: 'normal',
+            children: [
+              {
+                _type: 'span',
+                _key: 'k1',
+                text: 'item',
+                marks: [],
+              },
+            ],
+            _key: 'k0',
+            markDefs: [],
+          },
+          {
+            _type: 'block',
+            style: 'normal',
+            children: [
+              {
+                _type: 'span',
+                _key: 'k3',
+                text: 'code',
+                marks: [],
+              },
+            ],
+            _key: 'k2',
+            markDefs: [],
+          },
+          {
+            _type: 'block',
+            style: 'normal',
+            children: [
+              {
+                _type: 'span',
+                _key: 'k6',
+                text: 'link',
+                marks: ['k5'],
+              },
+              {
+                _type: 'span',
+                _key: 'k7',
+                text: ' bar',
+                marks: [],
+              },
+              {
+                _type: 'span',
+                _key: 'k9',
+                text: 'b',
+                marks: ['k8'],
+              },
+              {
+                _type: 'span',
+                _key: 'k10',
+                text: ' c',
+                marks: [],
+              },
+            ],
+            _key: 'k4',
+            markDefs: [
+              {
+                _key: 'k5',
+                _type: 'link',
+                href: 'https://example.com',
+              },
+              {
+                _key: 'k8',
+                _type: 'link',
+                href: 'https://b.com',
+              },
+            ],
+          },
+        ])
+      })
+
+      test('keeps an empty link paragraph after a code block in a flattened item', () => {
+        const keyGenerator = createTestKeyGenerator()
+        const markdown = [
+          '- item',
+          '',
+          '  ```',
+          '  code',
+          '  ```',
+          '',
+          '  [](https://example.com)',
+        ].join('\n')
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator,
+            schema: compileSchema(
+              defineSchema({
+                styles: [{name: 'normal'}],
+                annotations: [
+                  {name: 'link', fields: [{name: 'href', type: 'string'}]},
+                ],
+              }),
+            ),
+          }),
+        ).toEqual([
+          {
+            _type: 'block',
+            style: 'normal',
+            children: [
+              {
+                _type: 'span',
+                _key: 'k1',
+                text: 'item',
+                marks: [],
+              },
+            ],
+            _key: 'k0',
+            markDefs: [],
+          },
+          {
+            _type: 'block',
+            style: 'normal',
+            children: [
+              {
+                _type: 'span',
+                _key: 'k3',
+                text: 'code',
+                marks: [],
+              },
+            ],
+            _key: 'k2',
+            markDefs: [],
+          },
+          {
+            _type: 'block',
+            style: 'normal',
+            children: [
+              {
+                _type: 'span',
+                _key: 'k6',
+                text: '',
+                marks: [],
+              },
+            ],
+            _key: 'k4',
+            markDefs: [
+              {
+                _key: 'k5',
+                _type: 'link',
+                href: 'https://example.com',
+              },
+            ],
+          },
+        ])
+      })
+
+      test('keeps an image that is the whole paragraph after a code block in a flattened item', () => {
+        const keyGenerator = createTestKeyGenerator()
+        const markdown = [
+          '- item',
+          '',
+          '  ```',
+          '  code',
+          '  ```',
+          '',
+          '  ![alt](https://example.com/i.png)',
+        ].join('\n')
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator,
+            schema: compileSchema(
+              defineSchema({
+                styles: [{name: 'normal'}],
+                inlineObjects: [
+                  {
+                    name: 'image',
+                    fields: [
+                      {name: 'src', type: 'string'},
+                      {name: 'alt', type: 'string'},
+                    ],
+                  },
+                ],
+                annotations: [
+                  {name: 'link', fields: [{name: 'href', type: 'string'}]},
+                ],
+              }),
+            ),
+          }),
+        ).toEqual([
+          {
+            _type: 'block',
+            style: 'normal',
+            children: [
+              {
+                _type: 'span',
+                _key: 'k1',
+                text: 'item',
+                marks: [],
+              },
+            ],
+            _key: 'k0',
+            markDefs: [],
+          },
+          {
+            _type: 'block',
+            style: 'normal',
+            children: [
+              {
+                _type: 'span',
+                _key: 'k3',
+                text: 'code',
+                marks: [],
+              },
+            ],
+            _key: 'k2',
+            markDefs: [],
+          },
+          {
+            _type: 'block',
+            style: 'normal',
+            children: [
+              {
+                _key: 'k5',
+                _type: 'image',
+                src: 'https://example.com/i.png',
+                alt: 'alt',
+              },
+            ],
+            _key: 'k4',
+            markDefs: [],
+          },
+        ])
+      })
+
+      test('keeps an empty paragraph after dropped inline HTML after a code block in a flattened item', () => {
+        const keyGenerator = createTestKeyGenerator()
+        const markdown = [
+          '- item',
+          '',
+          '  ```',
+          '  code',
+          '  ```',
+          '',
+          '  <span></span>',
+        ].join('\n')
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator,
+            schema: compileSchema(
+              defineSchema({
+                styles: [{name: 'normal'}],
+                inlineObjects: [
+                  {
+                    name: 'image',
+                    fields: [
+                      {name: 'src', type: 'string'},
+                      {name: 'alt', type: 'string'},
+                    ],
+                  },
+                ],
+                annotations: [
+                  {name: 'link', fields: [{name: 'href', type: 'string'}]},
+                ],
+              }),
+            ),
+          }),
+        ).toEqual([
+          {
+            _type: 'block',
+            style: 'normal',
+            children: [
+              {
+                _type: 'span',
+                _key: 'k1',
+                text: 'item',
+                marks: [],
+              },
+            ],
+            _key: 'k0',
+            markDefs: [],
+          },
+          {
+            _type: 'block',
+            style: 'normal',
+            children: [
+              {
+                _type: 'span',
+                _key: 'k3',
+                text: 'code',
+                marks: [],
+              },
+            ],
+            _key: 'k2',
+            markDefs: [],
+          },
+          {
+            _type: 'block',
+            style: 'normal',
+            children: [
+              {
+                _type: 'span',
+                _key: 'k5',
+                text: '',
+                marks: [],
+              },
+            ],
+            _key: 'k4',
+            markDefs: [],
+          },
+        ])
+      })
+
+      test('keeps an image and its link after a code block in a flattened item', () => {
+        const keyGenerator = createTestKeyGenerator()
+        const markdown = [
+          '- item',
+          '',
+          '  ```',
+          '  code',
+          '  ```',
+          '',
+          '  [![alt](https://example.com/i.png)](https://example.com)',
+        ].join('\n')
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator,
+            schema: compileSchema(
+              defineSchema({
+                styles: [{name: 'normal'}],
+                inlineObjects: [
+                  {
+                    name: 'image',
+                    fields: [
+                      {name: 'src', type: 'string'},
+                      {name: 'alt', type: 'string'},
+                    ],
+                  },
+                ],
+                annotations: [
+                  {name: 'link', fields: [{name: 'href', type: 'string'}]},
+                ],
+              }),
+            ),
+          }),
+        ).toEqual([
+          {
+            _type: 'block',
+            style: 'normal',
+            children: [
+              {
+                _type: 'span',
+                _key: 'k1',
+                text: 'item',
+                marks: [],
+              },
+            ],
+            _key: 'k0',
+            markDefs: [],
+          },
+          {
+            _type: 'block',
+            style: 'normal',
+            children: [
+              {
+                _type: 'span',
+                _key: 'k3',
+                text: 'code',
+                marks: [],
+              },
+            ],
+            _key: 'k2',
+            markDefs: [],
+          },
+          {
+            _type: 'block',
+            style: 'normal',
+            children: [
+              {
+                _key: 'k6',
+                _type: 'image',
+                src: 'https://example.com/i.png',
+                alt: 'alt',
+              },
+            ],
+            _key: 'k4',
+            markDefs: [
+              {
+                _key: 'k5',
+                _type: 'link',
+                href: 'https://example.com',
+              },
+            ],
+          },
+        ])
+      })
+    })
+
     describe('nested', () => {
       test('unordered nested lists', () => {
         const keyGenerator = createTestKeyGenerator()
