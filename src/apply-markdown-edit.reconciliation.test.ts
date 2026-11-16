@@ -429,7 +429,7 @@ describe('the reconciliation report', () => {
     })
   })
 
-  test('a whole-document skip of key matching reports round-trip-mismatch with no preserved keys', () => {
+  test('an h3 break permits key matching and reports preserved keys', () => {
     const keyGenerator = createTestKeyGenerator()
     const stored = [
       block('b1', 's1', 'foo'),
@@ -449,29 +449,63 @@ describe('the reconciliation report', () => {
         report = r
       },
     })
-    expect(result).toEqual([
-      block('k0', 'k1', 'foo'),
-      {
-        _type: 'block',
-        _key: 'k2',
-        style: 'h3',
-        markDefs: [],
-        children: [{_type: 'span', _key: 'k3', text: 'bar', marks: []}],
-      },
-      block('k4', 'k5', 'baz'),
-    ])
+    expect(result).toEqual(stored)
     expect(report).toEqual({
-      keyMatching: 'skipped',
-      reason: 'round-trip-mismatch',
-      mismatch: {
-        type: 'text-changed',
-        storedPath: [{_key: 'b2'}, 'children', {_key: 's2'}],
-        message:
-          "The block's text came back different, starting at the text `\\nbaz`",
-      },
-      renamedKeys: [],
       hiddenLosses: [],
+      keyFallbacks: [],
+      keyMatching: 'performed',
       markdownLosses: [],
+      preservedKeys: [
+        {
+          basis: 'content-unchanged',
+          key: 'b1',
+          path: [
+            {
+              _key: 'b1',
+            },
+          ],
+          valueChanged: false,
+        },
+        {
+          basis: 'content-unchanged',
+          key: 's1',
+          path: [
+            {
+              _key: 'b1',
+            },
+            'children',
+            {
+              _key: 's1',
+            },
+          ],
+          valueChanged: false,
+        },
+        {
+          basis: 'content-unchanged',
+          key: 'b2',
+          path: [
+            {
+              _key: 'b2',
+            },
+          ],
+          valueChanged: false,
+        },
+        {
+          basis: 'content-unchanged',
+          key: 's2',
+          path: [
+            {
+              _key: 'b2',
+            },
+            'children',
+            {
+              _key: 's2',
+            },
+          ],
+          valueChanged: false,
+        },
+      ],
+      renamedKeys: [],
       undeclaredObjects: [],
     })
   })
@@ -927,13 +961,15 @@ describe('the reconciliation report', () => {
         markDefs: [],
         children: [
           {_type: 'span', _key: 's2', text: 'bar', marks: []},
-          {_type: 'span', text: '\nbaz', marks: []},
+          {_type: 'span', text: '\nbaz', marks: ['strong']},
         ],
       } as unknown as PortableTextBlock,
     ]
-    const markdown = portableTextToMarkdown(structuredClone(stored))
+    const serialize = {marks: {strong: () => ''}}
+    const markdown = portableTextToMarkdown(structuredClone(stored), serialize)
     let report!: ReconciliationReport
     const result = applyMarkdownEdit(stored, markdown, {
+      serialize,
       deserialize: {keyGenerator},
       onReconciliation: (r) => {
         report = r
@@ -948,7 +984,6 @@ describe('the reconciliation report', () => {
         markDefs: [],
         children: [{_type: 'span', _key: 'k3', text: 'bar', marks: []}],
       },
-      block('k4', 'k5', 'baz'),
     ])
     expect(report).toEqual({
       keyMatching: 'skipped',
@@ -962,6 +997,162 @@ describe('the reconciliation report', () => {
       renamedKeys: [],
       hiddenLosses: [],
       markdownLosses: [],
+      undeclaredObjects: [],
+    })
+  })
+
+  test('a keyless heading with a break preserves surrounding empty blocks', () => {
+    const keyGenerator = createTestKeyGenerator()
+    const stored = [
+      block('b1', 's1', 'foo'),
+      block('e1', 'es1', ''),
+      {
+        _type: 'block',
+        style: 'h1',
+        markDefs: [],
+        children: [
+          {_type: 'span', _key: 's2', text: 'bar', marks: []},
+          {_type: 'span', text: '\nbaz', marks: []},
+        ],
+      } as unknown as PortableTextBlock,
+    ]
+    const markdown = portableTextToMarkdown(structuredClone(stored))
+    let report!: ReconciliationReport
+    const result = applyMarkdownEdit(stored, markdown, {
+      deserialize: {keyGenerator},
+      onReconciliation: (r) => {
+        report = r
+      },
+    })
+    expect(result).toEqual([
+      {
+        _key: 'b1',
+        _type: 'block',
+        children: [
+          {
+            _key: 's1',
+            _type: 'span',
+            marks: [],
+            text: 'foo',
+          },
+        ],
+        markDefs: [],
+        style: 'normal',
+      },
+      {
+        _key: 'e1',
+        _type: 'block',
+        children: [
+          {
+            _key: 'es1',
+            _type: 'span',
+            marks: [],
+            text: '',
+          },
+        ],
+        markDefs: [],
+        style: 'normal',
+      },
+      {
+        _key: 'k2',
+        _type: 'block',
+        children: [
+          {
+            _key: 's2',
+            _type: 'span',
+            marks: [],
+            text: 'bar',
+          },
+          {
+            _type: 'span',
+            marks: [],
+            text: '\nbaz',
+          },
+        ],
+        markDefs: [],
+        style: 'h1',
+      },
+    ])
+    expect(report).toEqual({
+      hiddenLosses: [],
+      keyFallbacks: [],
+      keyMatching: 'performed',
+      markdownLosses: [],
+      preservedKeys: [
+        {
+          basis: 'content-unchanged',
+          key: 'b1',
+          path: [
+            {
+              _key: 'b1',
+            },
+          ],
+          valueChanged: false,
+        },
+        {
+          basis: 'content-unchanged',
+          key: 's1',
+          path: [
+            {
+              _key: 'b1',
+            },
+            'children',
+            {
+              _key: 's1',
+            },
+          ],
+          valueChanged: false,
+        },
+        {
+          basis: 'content-unchanged',
+          key: 'e1',
+          path: [
+            {
+              _key: 'e1',
+            },
+          ],
+          valueChanged: false,
+        },
+        {
+          basis: 'content-unchanged',
+          key: 'es1',
+          path: [
+            {
+              _key: 'e1',
+            },
+            'children',
+            {
+              _key: 'es1',
+            },
+          ],
+          valueChanged: false,
+        },
+        {
+          basis: 'content-unchanged',
+          key: 'k2',
+          path: [
+            {
+              _key: 'k2',
+            },
+          ],
+          valueChanged: true,
+        },
+        {
+          basis: 'content-unchanged',
+          key: 's2',
+          path: [
+            {
+              _key: 'k2',
+            },
+            'children',
+            {
+              _key: 's2',
+            },
+          ],
+          valueChanged: false,
+        },
+      ],
+      renamedKeys: [],
       undeclaredObjects: [],
     })
   })
@@ -2173,7 +2364,7 @@ describe('the reconciliation report', () => {
     })
   })
 
-  test('a whole-document skip of key matching reports every stored loss as a hidden loss', () => {
+  test('an h3 break permits recovery of stored annotation losses', () => {
     const keyGenerator = createTestKeyGenerator()
     const stored = [
       internalLinkBlock('b1'),
@@ -2193,37 +2384,105 @@ describe('the reconciliation report', () => {
         report = r
       },
     })
-    expect(result).toEqual([
-      block('k0', 'k1', 'Read foo before baz.'),
-      {
-        _type: 'block',
-        _key: 'k2',
-        style: 'h3',
-        markDefs: [],
-        children: [{_type: 'span', _key: 'k3', text: 'bar', marks: []}],
-      },
-      block('k4', 'k5', 'qux'),
-    ])
+    expect(result).toEqual(stored)
     expect(report).toEqual({
-      keyMatching: 'skipped',
-      reason: 'round-trip-mismatch',
-      mismatch: {
-        type: 'text-changed',
-        storedPath: [{_key: 'b2'}, 'children', {_key: 's4'}],
-        message:
-          "The block's text came back different, starting at the text `\\nqux`",
-      },
-      renamedKeys: [],
-      hiddenLosses: [
+      hiddenLosses: [],
+      keyFallbacks: [],
+      keyMatching: 'performed',
+      markdownLosses: [],
+      preservedKeys: [
         {
-          type: 'annotation-dropped',
-          message:
-            'Removed the `internalLink` annotation, kept its text: no `internalLink` mark renderer',
-          path: [{_key: 'b1'}, 'children', {_key: 's2'}],
-          snippet: 'foo',
+          basis: 'content-unchanged',
+          key: 'b1',
+          path: [
+            {
+              _key: 'b1',
+            },
+          ],
+          valueChanged: false,
+        },
+        {
+          basis: 'content-unchanged',
+          key: 'm1',
+          path: [
+            {
+              _key: 'b1',
+            },
+            'markDefs',
+            {
+              _key: 'm1',
+            },
+          ],
+          valueChanged: false,
+        },
+        {
+          basis: 'content-unchanged',
+          key: 's1',
+          path: [
+            {
+              _key: 'b1',
+            },
+            'children',
+            {
+              _key: 's1',
+            },
+          ],
+          valueChanged: false,
+        },
+        {
+          basis: 'content-unchanged',
+          key: 's2',
+          path: [
+            {
+              _key: 'b1',
+            },
+            'children',
+            {
+              _key: 's2',
+            },
+          ],
+          valueChanged: false,
+        },
+        {
+          basis: 'content-unchanged',
+          key: 's3',
+          path: [
+            {
+              _key: 'b1',
+            },
+            'children',
+            {
+              _key: 's3',
+            },
+          ],
+          valueChanged: false,
+        },
+        {
+          basis: 'content-unchanged',
+          key: 'b2',
+          path: [
+            {
+              _key: 'b2',
+            },
+          ],
+          valueChanged: false,
+        },
+        {
+          basis: 'content-unchanged',
+          key: 's4',
+          path: [
+            {
+              _key: 'b2',
+            },
+            'children',
+            {
+              _key: 's4',
+            },
+          ],
+          valueChanged: false,
         },
       ],
-      markdownLosses: [],
+      renamedKeys: [],
       undeclaredObjects: [],
     })
   })
@@ -3925,7 +4184,7 @@ describe('the reconciliation report', () => {
     expect(report.undeclaredObjects).toEqual([])
   })
 
-  test('a skipped report carries markdown losses and undeclared objects', () => {
+  test('a performed report carries markdown losses and undeclared objects', () => {
     const keyGenerator = createTestKeyGenerator()
     const stored = [
       {
@@ -3954,33 +4213,57 @@ describe('the reconciliation report', () => {
       },
     })
     expect(report).toEqual({
-      keyMatching: 'skipped',
-      reason: 'round-trip-mismatch',
-      mismatch: {
-        type: 'text-changed',
-        storedPath: [{_key: 'b1'}, 'children', {_key: 's1'}],
-        message:
-          "The block's text came back different, starting at the text `\\nbar`",
-      },
-      renamedKeys: [],
       hiddenLosses: [],
+      keyFallbacks: [],
+      keyMatching: 'performed',
       markdownLosses: [
         {
-          type: 'style-fallback',
+          line: 3,
           message:
             '`###` heading became a normal paragraph: the schema has no `h3` style',
-          line: 4,
           snippet: 'baz',
+          type: 'style-fallback',
         },
       ],
+      preservedKeys: [
+        {
+          basis: 'content-unchanged',
+          key: 'b1',
+          path: [
+            {
+              _key: 'b1',
+            },
+          ],
+          valueChanged: false,
+        },
+        {
+          basis: 'content-unchanged',
+          key: 's1',
+          path: [
+            {
+              _key: 'b1',
+            },
+            'children',
+            {
+              _key: 's1',
+            },
+          ],
+          valueChanged: false,
+        },
+      ],
+      renamedKeys: [],
       undeclaredObjects: [
         {
-          _type: 'product',
           _key: 'p1',
-          position: 'block',
-          path: [{_key: 'p1'}],
+          _type: 'product',
           message:
             'Kept the block-level `product` object as written: the schema has no block-level `product` object',
+          path: [
+            {
+              _key: 'p1',
+            },
+          ],
+          position: 'block',
         },
       ],
     })

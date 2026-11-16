@@ -27,6 +27,73 @@ function block(
 }
 
 describe(applyMarkdownEdit.name, () => {
+  test('break tags survive a same-cell edit', () => {
+    const stored = [
+      {
+        _type: 'table',
+        headerRows: 1,
+        rows: [
+          {
+            _type: 'row',
+            cells: [
+              {
+                _type: 'cell',
+                value: [
+                  {
+                    _type: 'block',
+                    style: 'normal',
+                    markDefs: [],
+                    children: [
+                      {_type: 'span', text: 'foo\nbar', marks: [], _key: 'b4'},
+                    ],
+                    _key: 'b3',
+                  },
+                ],
+                _key: 'b2',
+              },
+            ],
+            _key: 'b1',
+          },
+        ],
+        _key: 'b0',
+      },
+    ]
+    expect(
+      applyMarkdownEdit(stored, '| food<br />bar |\n| --- |', {
+        deserialize: {keyGenerator: createTestKeyGenerator()},
+      }),
+    ).toEqual([
+      {
+        _type: 'table',
+        headerRows: 1,
+        rows: [
+          {
+            _type: 'row',
+            cells: [
+              {
+                _type: 'cell',
+                value: [
+                  {
+                    _type: 'block',
+                    style: 'normal',
+                    markDefs: [],
+                    children: [
+                      {_type: 'span', text: 'food\nbar', marks: [], _key: 'b4'},
+                    ],
+                    _key: 'b3',
+                  },
+                ],
+                _key: 'b2',
+              },
+            ],
+            _key: 'b1',
+          },
+        ],
+        _key: 'b0',
+      },
+    ])
+  })
+
   test('a fence key differing from the matched stored block loses to the stored key', () => {
     const keyGenerator = createTestKeyGenerator()
     const stored = [{_type: 'product', _key: 'p1', sku: 'a'}]
@@ -955,7 +1022,7 @@ describe(applyMarkdownEdit.name, () => {
     ])
   })
 
-  test('an h3 with a hard break cannot be traced, so keys reset', () => {
+  test('an h3 with a hard break round-trips with its keys', () => {
     const keyGenerator = createTestKeyGenerator()
     const stored = [
       {
@@ -969,22 +1036,7 @@ describe(applyMarkdownEdit.name, () => {
     const markdown = portableTextToMarkdown(structuredClone(stored))
     expect(
       applyMarkdownEdit(stored, markdown, {deserialize: {keyGenerator}}),
-    ).toEqual([
-      {
-        _type: 'block',
-        _key: 'k0',
-        style: 'h3',
-        markDefs: [],
-        children: [{_type: 'span', _key: 'k1', text: 'one', marks: []}],
-      },
-      {
-        _type: 'block',
-        _key: 'k2',
-        style: 'normal',
-        markDefs: [],
-        children: [{_type: 'span', _key: 'k3', text: 'two', marks: []}],
-      },
-    ])
+    ).toEqual(stored)
   })
 
   test('an empty line between hard breaks round-trips with its keys', () => {
@@ -1709,7 +1761,7 @@ describe(applyMarkdownEdit.name, () => {
     ])
   })
 
-  test('a count-preserving scramble of the serialization adopts nothing', () => {
+  test('an h3 break preserves following blocks and an empty block', () => {
     const keyGenerator = createTestKeyGenerator()
     const stored = [
       {
@@ -1726,17 +1778,7 @@ describe(applyMarkdownEdit.name, () => {
     const reconciled = applyMarkdownEdit(stored, markdown, {
       deserialize: {keyGenerator},
     })
-    expect(reconciled).toEqual([
-      {
-        _type: 'block',
-        _key: 'k0',
-        style: 'h3',
-        markDefs: [],
-        children: [{_type: 'span', _key: 'k1', text: 'one', marks: []}],
-      },
-      block('k2', 'k3', 'two'),
-      block('k4', 'k5', 'plain text'),
-    ])
+    expect(reconciled).toEqual(stored)
   })
 
   test('rewriting every block in place keeps every key pairwise', () => {
