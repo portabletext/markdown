@@ -1,5 +1,21 @@
 # @portabletext/markdown
 
+## 2.9.5
+
+### Patch Changes
+
+- [#7](https://github.com/portabletext/markdown/pull/7) [`10d9019`](https://github.com/portabletext/markdown/commit/10d901967b7c40fc9331df35df3003a499701d49) Thanks [@christianhg](https://github.com/christianhg)! - fix: keep blocks inside a table cell through Markdown export and import
+  
+  A Markdown table cell is one line. A plain paragraph or an image in a cell is still written as Markdown. Any other block in a cell, such as a code block, callout or list item, is written as one line of `json:object` JSON that holds the whole block. Blocks in a cell are separated by `<br><br>`.
+  
+  `markdownToPortableText` splits a cell at `<br><br>` and turns each JSON segment back into its block. An `applyMarkdownEdit` that changes text in a cell now keeps the other blocks in that cell.
+  
+  A cell with one plain paragraph, only an image or only an unknown object is written exactly as before. Any other block in a cell is written as JSON, and custom renderers in `types`, `block`, `listItem` and `unknownType` are not called for it. An image in a cell still uses `types.image`.
+
+- [#8](https://github.com/portabletext/markdown/pull/8) [`4d84b3e`](https://github.com/portabletext/markdown/commit/4d84b3e4b1eb3d25d4c1961af49b1b0319a7698a) Thanks [@christianhg](https://github.com/christianhg)! - fix: keep a link at the start of a list paragraph after a code block
+  
+  Fix a link at the start of a paragraph after a code block, heading or other block in a list item being dropped when the schema has no list types. Text after it, in the item or after the list, no longer carries a mark with no link. A paragraph there now always gives a block, as it does when the schema has list types, so a paragraph that is only an image keeps the image instead of losing it.
+
 ## 2.9.4
 
 ### Patch Changes
