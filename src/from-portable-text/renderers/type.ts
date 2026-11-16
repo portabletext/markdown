@@ -1,6 +1,7 @@
 import {isTypedObject} from '@portabletext/schema'
 import {isPortableTextBlock} from '@portabletext/toolkit'
 import type {PortableTextBlock, TypedObject} from '@portabletext/types'
+import {defaultSchema} from '../../default-schema'
 import {
   escapeImageAndLinkText,
   escapeImageAndLinkTitle,
@@ -163,6 +164,15 @@ type TableShaped = {
   rows: Array<{cells: Array<{value: Array<TypedObject>}>}>
 }
 
+function isPlainParagraph(block: TypedObject): boolean {
+  if (!isPortableTextBlock(block)) {
+    return false
+  }
+  return (
+    !block.listItem && (block.style === undefined || block.style === 'normal')
+  )
+}
+
 /**
  * Renders a Portable Text table block-object back to Markdown.
  *
@@ -192,18 +202,26 @@ export const DefaultTableRenderer: PortableTextTypeRenderer<{
     }>
   }>
 }> = (options) => {
+  return renderTableWithSchema(options, defaultSchema)
+}
+
+export function renderTableWithSchema(
+  options: Parameters<PortableTextTypeRenderer>[0],
+  schema: typeof defaultSchema,
+): string {
   const {value, renderNode} = options
 
   if (!isTableShaped(value)) {
     return DefaultUnknownTypeRenderer(options)
   }
 
-  return renderTable(value, renderNode)
+  return renderTable(value, renderNode, schema)
 }
 
 function renderTable(
   value: TableShaped,
   renderNode: Parameters<PortableTextTypeRenderer>[0]['renderNode'],
+  schema: typeof defaultSchema,
 ): string {
   const rows = value.rows
   // `alignment` is an extension field, not part of the table shape: junk
@@ -221,37 +239,44 @@ function renderTable(
     return ''
   }
 
-  // Helper to extract text from cell blocks
   const getCellText = (cellBlocks: Array<TypedObject>): string => {
     return cellBlocks
       .map((block, index) => {
-        const rendered = renderNode({
-          node: block,
-          index,
-          isInline: false,
-          renderNode,
-        })
         const rendererOptions = {
           value: block,
           isInline: false,
           index,
           renderNode,
         }
-        if (rendered === DefaultUnknownTypeRenderer(rendererOptions)) {
-          // A GFM cell is one line, so the multi-line fence carrier
-          // would squash into `<br>` soup that reparses as plain text;
-          // the inline carrier is single-line and reparses to the same
-          // value. Exact-matched against the default carrier's output,
-          // so declared markdown forms and custom `unknownType` output
-          // pass through untouched.
+        if (
+          !isPlainParagraph(block) &&
+          block._type !== 'image' &&
+          (cellBlocks.length > 1 ||
+            isPortableTextBlock(block) ||
+            schema.blockObjects.some((object) => object.name === block._type))
+        ) {
           return DefaultUnknownTypeRenderer({
             ...rendererOptions,
             isInline: true,
           })
         }
-        return rendered
+        const rendered = renderNode({
+          node: block,
+          index,
+          isInline: false,
+          renderNode,
+        })
+        if (rendered === DefaultUnknownTypeRenderer(rendererOptions)) {
+          return DefaultUnknownTypeRenderer({
+            ...rendererOptions,
+            isInline: true,
+          })
+        }
+        return isPlainParagraph(block) && index < cellBlocks.length - 1
+          ? escapeTableCell(rendered, true)
+          : rendered
       })
-      .join(' ')
+      .join('<br><br>')
       .trim()
   }
 

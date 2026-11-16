@@ -4177,6 +4177,1959 @@ describe(markdownToPortableText.name, () => {
   })
 
   describe('tables', () => {
+    describe('cell blocks', () => {
+      test('keeps malformed carried payload 1 alone', () => {
+        const markdown =
+          '| json:object`{"_type":"block","_key":"b","children":[null]}` |\n| --- |'
+        const degradations: Array<Degradation> = []
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator: createTestKeyGenerator(),
+            onDegradation: (report) =>
+              degradations.push(...report.degradations),
+          }),
+        ).toEqual([
+          {
+            _key: 'k3',
+            _type: 'table',
+            headerRows: 1,
+            rows: [
+              {
+                _key: 'k2',
+                _type: 'row',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k1',
+                    value: [{_type: 'block', _key: 'b', children: [null]}],
+                  },
+                ],
+              },
+            ],
+          },
+        ])
+        expect(degradations).toEqual([
+          {
+            type: 'object-type-undeclared',
+            message:
+              'Kept the block-level `block` object as written: the schema has no block-level `block` object',
+            line: 1,
+            snippet: '{"_type":"block","_key":"b","children":[...',
+          },
+        ])
+      })
+
+      test('keeps malformed carried payload 1 beside a paragraph', () => {
+        const markdown =
+          '| x<br><br>json:object`{"_type":"block","_key":"b","children":[null]}` |\n| --- |'
+        const degradations: Array<Degradation> = []
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator: createTestKeyGenerator(),
+            onDegradation: (report) =>
+              degradations.push(...report.degradations),
+          }),
+        ).toEqual([
+          {
+            _key: 'k5',
+            _type: 'table',
+            headerRows: 1,
+            rows: [
+              {
+                _key: 'k4',
+                _type: 'row',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k3',
+                    value: [
+                      {
+                        _type: 'block',
+                        style: 'normal',
+                        children: [
+                          {_type: 'span', _key: 'k1', text: 'x', marks: []},
+                        ],
+                        _key: 'k0',
+                        markDefs: [],
+                      },
+                      {_type: 'block', _key: 'b', children: [null]},
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ])
+        expect(degradations).toEqual([
+          {
+            type: 'object-type-undeclared',
+            message:
+              'Kept the block-level `block` object as written: the schema has no block-level `block` object',
+            line: 1,
+            snippet: '{"_type":"block","_key":"b","children":[...',
+          },
+        ])
+      })
+
+      test('keeps malformed carried payload 2 alone', () => {
+        const markdown =
+          '| json:object`{"_type":"block","_key":"b","style":"normal","markDefs":[null],"children":[{"_type":"span","_key":"s","text":"t","marks":[]}]}` |\n| --- |'
+        const degradations: Array<Degradation> = []
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator: createTestKeyGenerator(),
+            onDegradation: (report) =>
+              degradations.push(...report.degradations),
+          }),
+        ).toEqual([
+          {
+            _key: 'k3',
+            _type: 'table',
+            headerRows: 1,
+            rows: [
+              {
+                _key: 'k2',
+                _type: 'row',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k1',
+                    value: [
+                      {
+                        _type: 'block',
+                        _key: 'b',
+                        style: 'normal',
+                        markDefs: [null],
+                        children: [
+                          {_type: 'span', _key: 's', text: 't', marks: []},
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ])
+        expect(degradations).toEqual([
+          {
+            type: 'object-type-undeclared',
+            message:
+              'Kept the block-level `block` object as written: the schema has no block-level `block` object',
+            line: 1,
+            snippet: '{"_type":"block","_key":"b","style":"nor...',
+          },
+        ])
+      })
+
+      test('keeps malformed carried payload 2 beside a paragraph', () => {
+        const markdown =
+          '| x<br><br>json:object`{"_type":"block","_key":"b","style":"normal","markDefs":[null],"children":[{"_type":"span","_key":"s","text":"t","marks":[]}]}` |\n| --- |'
+        const degradations: Array<Degradation> = []
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator: createTestKeyGenerator(),
+            onDegradation: (report) =>
+              degradations.push(...report.degradations),
+          }),
+        ).toEqual([
+          {
+            _key: 'k5',
+            _type: 'table',
+            headerRows: 1,
+            rows: [
+              {
+                _key: 'k4',
+                _type: 'row',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k3',
+                    value: [
+                      {
+                        _type: 'block',
+                        style: 'normal',
+                        children: [
+                          {_type: 'span', _key: 'k1', text: 'x', marks: []},
+                        ],
+                        _key: 'k0',
+                        markDefs: [],
+                      },
+                      {
+                        _type: 'block',
+                        _key: 'b',
+                        style: 'normal',
+                        markDefs: [null],
+                        children: [
+                          {_type: 'span', _key: 's', text: 't', marks: []},
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ])
+        expect(degradations).toEqual([
+          {
+            type: 'object-type-undeclared',
+            message:
+              'Kept the block-level `block` object as written: the schema has no block-level `block` object',
+            line: 1,
+            snippet: '{"_type":"block","_key":"b","style":"nor...',
+          },
+        ])
+      })
+
+      test('keeps malformed carried payload 3 alone', () => {
+        const markdown =
+          '| json:object`{"_type":"block","_key":"b","style":"normal","markDefs":"q","children":[{"_type":"span","_key":"s","text":"t","marks":[]}]}` |\n| --- |'
+        const degradations: Array<Degradation> = []
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator: createTestKeyGenerator(),
+            onDegradation: (report) =>
+              degradations.push(...report.degradations),
+          }),
+        ).toEqual([
+          {
+            _key: 'k3',
+            _type: 'table',
+            headerRows: 1,
+            rows: [
+              {
+                _key: 'k2',
+                _type: 'row',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k1',
+                    value: [
+                      {
+                        _type: 'block',
+                        _key: 'b',
+                        style: 'normal',
+                        markDefs: 'q',
+                        children: [
+                          {_type: 'span', _key: 's', text: 't', marks: []},
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ])
+        expect(degradations).toEqual([
+          {
+            type: 'object-type-undeclared',
+            message:
+              'Kept the block-level `block` object as written: the schema has no block-level `block` object',
+            line: 1,
+            snippet: '{"_type":"block","_key":"b","style":"nor...',
+          },
+        ])
+      })
+
+      test('keeps malformed carried payload 3 beside a paragraph', () => {
+        const markdown =
+          '| x<br><br>json:object`{"_type":"block","_key":"b","style":"normal","markDefs":"q","children":[{"_type":"span","_key":"s","text":"t","marks":[]}]}` |\n| --- |'
+        const degradations: Array<Degradation> = []
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator: createTestKeyGenerator(),
+            onDegradation: (report) =>
+              degradations.push(...report.degradations),
+          }),
+        ).toEqual([
+          {
+            _key: 'k5',
+            _type: 'table',
+            headerRows: 1,
+            rows: [
+              {
+                _key: 'k4',
+                _type: 'row',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k3',
+                    value: [
+                      {
+                        _type: 'block',
+                        style: 'normal',
+                        children: [
+                          {_type: 'span', _key: 'k1', text: 'x', marks: []},
+                        ],
+                        _key: 'k0',
+                        markDefs: [],
+                      },
+                      {
+                        _type: 'block',
+                        _key: 'b',
+                        style: 'normal',
+                        markDefs: 'q',
+                        children: [
+                          {_type: 'span', _key: 's', text: 't', marks: []},
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ])
+        expect(degradations).toEqual([
+          {
+            type: 'object-type-undeclared',
+            message:
+              'Kept the block-level `block` object as written: the schema has no block-level `block` object',
+            line: 1,
+            snippet: '{"_type":"block","_key":"b","style":"nor...',
+          },
+        ])
+      })
+
+      test('keeps malformed carried payload 4 alone', () => {
+        const markdown =
+          '| json:object`{"_type":"block","_key":"b","style":"normal","markDefs":[],"children":[{"_type":"span","_key":"s","text":"t","marks":"strong"}]}` |\n| --- |'
+        const degradations: Array<Degradation> = []
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator: createTestKeyGenerator(),
+            onDegradation: (report) =>
+              degradations.push(...report.degradations),
+          }),
+        ).toEqual([
+          {
+            _key: 'k3',
+            _type: 'table',
+            headerRows: 1,
+            rows: [
+              {
+                _key: 'k2',
+                _type: 'row',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k1',
+                    value: [
+                      {
+                        _type: 'block',
+                        _key: 'b',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 's',
+                            text: 't',
+                            marks: 'strong',
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ])
+        expect(degradations).toEqual([
+          {
+            type: 'object-type-undeclared',
+            message:
+              'Kept the block-level `block` object as written: the schema has no block-level `block` object',
+            line: 1,
+            snippet: '{"_type":"block","_key":"b","style":"nor...',
+          },
+        ])
+      })
+
+      test('keeps malformed carried payload 4 beside a paragraph', () => {
+        const markdown =
+          '| x<br><br>json:object`{"_type":"block","_key":"b","style":"normal","markDefs":[],"children":[{"_type":"span","_key":"s","text":"t","marks":"strong"}]}` |\n| --- |'
+        const degradations: Array<Degradation> = []
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator: createTestKeyGenerator(),
+            onDegradation: (report) =>
+              degradations.push(...report.degradations),
+          }),
+        ).toEqual([
+          {
+            _key: 'k5',
+            _type: 'table',
+            headerRows: 1,
+            rows: [
+              {
+                _key: 'k4',
+                _type: 'row',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k3',
+                    value: [
+                      {
+                        _type: 'block',
+                        style: 'normal',
+                        children: [
+                          {_type: 'span', _key: 'k1', text: 'x', marks: []},
+                        ],
+                        _key: 'k0',
+                        markDefs: [],
+                      },
+                      {
+                        _type: 'block',
+                        _key: 'b',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 's',
+                            text: 't',
+                            marks: 'strong',
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ])
+        expect(degradations).toEqual([
+          {
+            type: 'object-type-undeclared',
+            message:
+              'Kept the block-level `block` object as written: the schema has no block-level `block` object',
+            line: 1,
+            snippet: '{"_type":"block","_key":"b","style":"nor...',
+          },
+        ])
+      })
+
+      test('prunes unused link definitions at the end of a cell split', () => {
+        const markdown = '| [a<br><br>](https://x.y) |\n| --- |'
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator: createTestKeyGenerator(),
+          }),
+        ).toEqual([
+          {
+            _key: 'k7',
+            _type: 'table',
+            headerRows: 1,
+            rows: [
+              {
+                _key: 'k6',
+                _type: 'row',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k5',
+                    value: [
+                      {
+                        _type: 'block',
+                        style: 'normal',
+                        children: [
+                          {_type: 'span', _key: 'k2', text: 'a', marks: ['k1']},
+                        ],
+                        _key: 'k0',
+                        markDefs: [
+                          {_key: 'k1', _type: 'link', href: 'https://x.y'},
+                        ],
+                      },
+                      {
+                        _type: 'block',
+                        style: 'normal',
+                        children: [
+                          {_type: 'span', _key: 'k4', text: '', marks: []},
+                        ],
+                        _key: 'k3',
+                        markDefs: [],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ])
+      })
+
+      test('prunes unused link definitions at the start of a cell split', () => {
+        const markdown = '| [<br><br>b](https://x.y) |\n| --- |'
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator: createTestKeyGenerator(),
+          }),
+        ).toEqual([
+          {
+            _key: 'k7',
+            _type: 'table',
+            headerRows: 1,
+            rows: [
+              {
+                _key: 'k6',
+                _type: 'row',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k5',
+                    value: [
+                      {
+                        _type: 'block',
+                        style: 'normal',
+                        children: [
+                          {_type: 'span', _key: 'k2', text: '', marks: []},
+                        ],
+                        _key: 'k0',
+                        markDefs: [],
+                      },
+                      {
+                        _type: 'block',
+                        style: 'normal',
+                        children: [
+                          {_type: 'span', _key: 'k4', text: 'b', marks: ['k1']},
+                        ],
+                        _key: 'k3',
+                        markDefs: [
+                          {_key: 'k1', _type: 'link', href: 'https://x.y'},
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ])
+      })
+
+      test('keeps a link across a block split in a table cell', () => {
+        const markdown = '| [a<br><br>b](https://x.y) |\n| --- |'
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator: createTestKeyGenerator(),
+          }),
+        ).toEqual([
+          {
+            _key: 'k7',
+            _type: 'table',
+            headerRows: 1,
+            rows: [
+              {
+                _key: 'k6',
+                _type: 'row',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k5',
+                    value: [
+                      {
+                        _type: 'block',
+                        style: 'normal',
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k2',
+                            text: 'a',
+                            marks: ['k1'],
+                          },
+                        ],
+                        _key: 'k0',
+                        markDefs: [
+                          {
+                            _key: 'k1',
+                            _type: 'link',
+                            href: 'https://x.y',
+                          },
+                        ],
+                      },
+                      {
+                        _type: 'block',
+                        style: 'normal',
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k4',
+                            text: 'b',
+                            marks: ['k1'],
+                          },
+                        ],
+                        _key: 'k3',
+                        markDefs: [
+                          {
+                            _key: 'k1',
+                            _type: 'link',
+                            href: 'https://x.y',
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ])
+      })
+
+      test('keeps a link across a block split in a callout table cell', () => {
+        const markdown = '> [!NOTE]\n> | [a<br><br>b](https://x.y) |\n> | --- |'
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator: createTestKeyGenerator(),
+          }),
+        ).toEqual([
+          {
+            _key: 'k8',
+            _type: 'callout',
+            tone: 'note',
+            content: [
+              {
+                _key: 'k7',
+                _type: 'table',
+                headerRows: 1,
+                rows: [
+                  {
+                    _key: 'k6',
+                    _type: 'row',
+                    cells: [
+                      {
+                        _type: 'cell',
+                        _key: 'k5',
+                        value: [
+                          {
+                            _type: 'block',
+                            style: 'normal',
+                            children: [
+                              {
+                                _type: 'span',
+                                _key: 'k2',
+                                text: 'a',
+                                marks: ['k1'],
+                              },
+                            ],
+                            _key: 'k0',
+                            markDefs: [
+                              {
+                                _key: 'k1',
+                                _type: 'link',
+                                href: 'https://x.y',
+                              },
+                            ],
+                          },
+                          {
+                            _type: 'block',
+                            style: 'normal',
+                            children: [
+                              {
+                                _type: 'span',
+                                _key: 'k4',
+                                text: 'b',
+                                marks: ['k1'],
+                              },
+                            ],
+                            _key: 'k3',
+                            markDefs: [
+                              {
+                                _key: 'k1',
+                                _type: 'link',
+                                href: 'https://x.y',
+                              },
+                            ],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ])
+      })
+
+      test('imports an exported heading and paragraph in a table cell without degradations', () => {
+        const value = [
+          {
+            _type: 'table',
+            _key: 't',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'r',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'c',
+                    value: [
+                      {
+                        _type: 'block',
+                        _key: 'h',
+                        style: 'h2',
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'hs',
+                            text: 't',
+                            marks: [],
+                          },
+                        ],
+                        markDefs: [],
+                      },
+                      {
+                        _type: 'block',
+                        _key: 'a',
+                        style: 'normal',
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'as',
+                            text: 'after',
+                            marks: [],
+                          },
+                        ],
+                        markDefs: [],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ]
+        const onDegradation = vi.fn()
+        const markdown = portableTextToMarkdown(value)
+        expect(markdown).toBe(
+          '| json:object`{"_type":"block","_key":"h","style":"h2","children":[{"_type":"span","_key":"hs","text":"t","marks":[]}],"markDefs":[]}`<br><br>after |\n| --- |',
+        )
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator: createTestKeyGenerator(),
+            onDegradation,
+          }),
+        ).toEqual([
+          {
+            _key: 'k5',
+            _type: 'table',
+            headerRows: 1,
+            rows: [
+              {
+                _key: 'k4',
+                _type: 'row',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k3',
+                    value: [
+                      {
+                        _type: 'block',
+                        _key: 'h',
+                        style: 'h2',
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'hs',
+                            text: 't',
+                            marks: [],
+                          },
+                        ],
+                        markDefs: [],
+                      },
+                      {
+                        _type: 'block',
+                        style: 'normal',
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k2',
+                            text: 'after',
+                            marks: [],
+                          },
+                        ],
+                        _key: 'k1',
+                        markDefs: [],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ])
+        expect(onDegradation).not.toHaveBeenCalled()
+      })
+
+      test('falls back for a carried heading missing from the schema', () => {
+        const schema = compileSchema(
+          defineSchema({...defaultSchema, styles: [{name: 'normal'}]}),
+        )
+        const degradations: Array<Degradation> = []
+        const rootDegradations: Array<Degradation> = []
+        const markdown =
+          '| json:object`{"_type":"block","_key":"h","style":"h2","children":[{"_type":"span","_key":"hs","text":"t","marks":[]}],"markDefs":[]}`<br><br>after |\n| --- |'
+        expect(
+          markdownToPortableText(markdown, {
+            schema,
+            keyGenerator: createTestKeyGenerator(),
+            onDegradation: (report) =>
+              degradations.push(...report.degradations),
+          }),
+        ).toEqual([
+          {
+            _key: 'k5',
+            _type: 'table',
+            headerRows: 1,
+            rows: [
+              {
+                _key: 'k4',
+                _type: 'row',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k3',
+                    value: [
+                      {
+                        _type: 'block',
+                        _key: 'h',
+                        style: 'normal',
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'hs',
+                            text: 't',
+                            marks: [],
+                          },
+                        ],
+                        markDefs: [],
+                      },
+                      {
+                        _type: 'block',
+                        style: 'normal',
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k2',
+                            text: 'after',
+                            marks: [],
+                          },
+                        ],
+                        _key: 'k1',
+                        markDefs: [],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ])
+        expect(degradations).toEqual([
+          {
+            type: 'style-fallback',
+            message:
+              '`##` heading became a normal paragraph: the schema has no `h2` style',
+            line: 1,
+            snippet: 't',
+          },
+        ])
+        expect(
+          markdownToPortableText('## t', {
+            schema,
+            keyGenerator: createTestKeyGenerator(),
+            onDegradation: (report) =>
+              rootDegradations.push(...report.degradations),
+          }),
+        ).toEqual([
+          {
+            _type: 'block',
+            _key: 'k0',
+            style: 'normal',
+            children: [{_type: 'span', _key: 'k1', text: 't', marks: []}],
+            markDefs: [],
+          },
+        ])
+        expect(rootDegradations).toEqual(degradations)
+      })
+
+      test('imports code first in a table cell', () => {
+        const markdown =
+          '| json:object`{"_type":"code","_key":"code","language":"ts","code":"const a = 1\\nconst b = 2"}`<br><br>after |\n| --- |'
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator: createTestKeyGenerator(),
+          }),
+        ).toEqual([
+          {
+            _type: 'table',
+            _key: 'k5',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'k4',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k3',
+                    value: [
+                      {
+                        _type: 'code',
+                        _key: 'code',
+                        language: 'ts',
+                        code: 'const a = 1\nconst b = 2',
+                      },
+                      {
+                        _type: 'block',
+                        _key: 'k1',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k2',
+                            text: 'after',
+                            marks: [],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ])
+      })
+
+      test('imports code in the middle in a table cell', () => {
+        const markdown =
+          '| before<br><br>json:object`{"_type":"code","_key":"code","language":"ts","code":"const a = 1\\nconst b = 2"}`<br><br>after |\n| --- |'
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator: createTestKeyGenerator(),
+          }),
+        ).toEqual([
+          {
+            _type: 'table',
+            _key: 'k7',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'k6',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k5',
+                    value: [
+                      {
+                        _type: 'block',
+                        _key: 'k0',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k1',
+                            text: 'before',
+                            marks: [],
+                          },
+                        ],
+                      },
+                      {
+                        _type: 'code',
+                        _key: 'code',
+                        language: 'ts',
+                        code: 'const a = 1\nconst b = 2',
+                      },
+                      {
+                        _type: 'block',
+                        _key: 'k3',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k4',
+                            text: 'after',
+                            marks: [],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ])
+      })
+
+      test('imports code last in a table cell', () => {
+        const markdown =
+          '| before<br><br>json:object`{"_type":"code","_key":"code","language":"ts","code":"const a = 1\\nconst b = 2"}` |\n| --- |'
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator: createTestKeyGenerator(),
+          }),
+        ).toEqual([
+          {
+            _type: 'table',
+            _key: 'k5',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'k4',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k3',
+                    value: [
+                      {
+                        _type: 'block',
+                        _key: 'k0',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k1',
+                            text: 'before',
+                            marks: [],
+                          },
+                        ],
+                      },
+                      {
+                        _type: 'code',
+                        _key: 'code',
+                        language: 'ts',
+                        code: 'const a = 1\nconst b = 2',
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ])
+      })
+
+      test('imports a callout in the middle in a table cell', () => {
+        const markdown =
+          '| before<br><br>json:object`{"_type":"callout","_key":"callout","tone":"tip","content":[{"_type":"block","_key":"inside","style":"normal","markDefs":[],"children":[{"_type":"span","_key":"insides","text":"inside","marks":[]}]}]}`<br><br>after |\n| --- |'
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator: createTestKeyGenerator(),
+          }),
+        ).toEqual([
+          {
+            _type: 'table',
+            _key: 'k7',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'k6',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k5',
+                    value: [
+                      {
+                        _type: 'block',
+                        _key: 'k0',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k1',
+                            text: 'before',
+                            marks: [],
+                          },
+                        ],
+                      },
+                      {
+                        _type: 'callout',
+                        _key: 'callout',
+                        tone: 'tip',
+                        content: [
+                          {
+                            _type: 'block',
+                            _key: 'inside',
+                            style: 'normal',
+                            markDefs: [],
+                            children: [
+                              {
+                                _type: 'span',
+                                _key: 'insides',
+                                text: 'inside',
+                                marks: [],
+                              },
+                            ],
+                          },
+                        ],
+                      },
+                      {
+                        _type: 'block',
+                        _key: 'k3',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k4',
+                            text: 'after',
+                            marks: [],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ])
+      })
+
+      test('imports HTML in the middle in a table cell', () => {
+        const markdown =
+          '| before<br><br>json:object`{"_type":"html","_key":"html","html":"<div>inside</div>"}`<br><br>after |\n| --- |'
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator: createTestKeyGenerator(),
+          }),
+        ).toEqual([
+          {
+            _type: 'table',
+            _key: 'k7',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'k6',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k5',
+                    value: [
+                      {
+                        _type: 'block',
+                        _key: 'k0',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k1',
+                            text: 'before',
+                            marks: [],
+                          },
+                        ],
+                      },
+                      {
+                        _type: 'html',
+                        _key: 'html',
+                        html: '<div>inside</div>',
+                      },
+                      {
+                        _type: 'block',
+                        _key: 'k3',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k4',
+                            text: 'after',
+                            marks: [],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ])
+      })
+
+      test('imports a horizontal rule in the middle in a table cell', () => {
+        const markdown =
+          '| before<br><br>json:object`{"_type":"horizontal-rule","_key":"rule"}`<br><br>after |\n| --- |'
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator: createTestKeyGenerator(),
+          }),
+        ).toEqual([
+          {
+            _type: 'table',
+            _key: 'k7',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'k6',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k5',
+                    value: [
+                      {
+                        _type: 'block',
+                        _key: 'k0',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k1',
+                            text: 'before',
+                            marks: [],
+                          },
+                        ],
+                      },
+                      {
+                        _type: 'horizontal-rule',
+                        _key: 'rule',
+                      },
+                      {
+                        _type: 'block',
+                        _key: 'k3',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k4',
+                            text: 'after',
+                            marks: [],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ])
+      })
+
+      test('imports a nested table in the middle in a table cell', () => {
+        const markdown =
+          '| before<br><br>json:object`{"_type":"table","_key":"innerTable","headerRows":1,"rows":[{"_type":"row","_key":"innerTablerow","cells":[{"_type":"cell","_key":"innerTablecell","value":[{"_type":"block","_key":"inner","style":"normal","markDefs":[],"children":[{"_type":"span","_key":"inners","text":"inner","marks":[]}]}]}]}]}`<br><br>after |\n| --- |'
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator: createTestKeyGenerator(),
+          }),
+        ).toEqual([
+          {
+            _type: 'table',
+            _key: 'k7',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'k6',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k5',
+                    value: [
+                      {
+                        _type: 'block',
+                        _key: 'k0',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k1',
+                            text: 'before',
+                            marks: [],
+                          },
+                        ],
+                      },
+                      {
+                        _type: 'table',
+                        _key: 'innerTable',
+                        headerRows: 1,
+                        rows: [
+                          {
+                            _type: 'row',
+                            _key: 'innerTablerow',
+                            cells: [
+                              {
+                                _type: 'cell',
+                                _key: 'innerTablecell',
+                                value: [
+                                  {
+                                    _type: 'block',
+                                    _key: 'inner',
+                                    style: 'normal',
+                                    markDefs: [],
+                                    children: [
+                                      {
+                                        _type: 'span',
+                                        _key: 'inners',
+                                        text: 'inner',
+                                        marks: [],
+                                      },
+                                    ],
+                                  },
+                                ],
+                              },
+                            ],
+                          },
+                        ],
+                      },
+                      {
+                        _type: 'block',
+                        _key: 'k3',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k4',
+                            text: 'after',
+                            marks: [],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ])
+      })
+
+      test('imports a heading in the middle in a table cell', () => {
+        const markdown =
+          '| before<br><br>json:object`{"_type":"block","_key":"heading","style":"h2","markDefs":[],"children":[{"_type":"span","_key":"headings","text":"heading","marks":[]}]}`<br><br>after |\n| --- |'
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator: createTestKeyGenerator(),
+          }),
+        ).toEqual([
+          {
+            _type: 'table',
+            _key: 'k7',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'k6',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k5',
+                    value: [
+                      {
+                        _type: 'block',
+                        _key: 'k0',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k1',
+                            text: 'before',
+                            marks: [],
+                          },
+                        ],
+                      },
+                      {
+                        _type: 'block',
+                        _key: 'heading',
+                        style: 'h2',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'headings',
+                            text: 'heading',
+                            marks: [],
+                          },
+                        ],
+                      },
+                      {
+                        _type: 'block',
+                        _key: 'k3',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k4',
+                            text: 'after',
+                            marks: [],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ])
+      })
+
+      test('imports a blockquote in the middle in a table cell', () => {
+        const markdown =
+          '| before<br><br>json:object`{"_type":"block","_key":"quote","style":"blockquote","markDefs":[],"children":[{"_type":"span","_key":"quotes","text":"quote","marks":[]}]}`<br><br>after |\n| --- |'
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator: createTestKeyGenerator(),
+          }),
+        ).toEqual([
+          {
+            _type: 'table',
+            _key: 'k7',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'k6',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k5',
+                    value: [
+                      {
+                        _type: 'block',
+                        _key: 'k0',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k1',
+                            text: 'before',
+                            marks: [],
+                          },
+                        ],
+                      },
+                      {
+                        _type: 'block',
+                        _key: 'quote',
+                        style: 'blockquote',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'quotes',
+                            text: 'quote',
+                            marks: [],
+                          },
+                        ],
+                      },
+                      {
+                        _type: 'block',
+                        _key: 'k3',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k4',
+                            text: 'after',
+                            marks: [],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ])
+      })
+
+      test('imports a list item in the middle in a table cell', () => {
+        const markdown =
+          '| before<br><br>json:object`{"_type":"block","_key":"item","style":"normal","markDefs":[],"children":[{"_type":"span","_key":"items","text":"item","marks":[]}],"listItem":"bullet","level":1}`<br><br>after |\n| --- |'
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator: createTestKeyGenerator(),
+          }),
+        ).toEqual([
+          {
+            _type: 'table',
+            _key: 'k7',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'k6',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k5',
+                    value: [
+                      {
+                        _type: 'block',
+                        _key: 'k0',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k1',
+                            text: 'before',
+                            marks: [],
+                          },
+                        ],
+                      },
+                      {
+                        _type: 'block',
+                        _key: 'item',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'items',
+                            text: 'item',
+                            marks: [],
+                          },
+                        ],
+                        listItem: 'bullet',
+                        level: 1,
+                      },
+                      {
+                        _type: 'block',
+                        _key: 'k3',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k4',
+                            text: 'after',
+                            marks: [],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ])
+      })
+
+      test('imports a second paragraph in the middle in a table cell', () => {
+        const markdown = '| before<br><br>second<br><br>after |\n| --- |'
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator: createTestKeyGenerator(),
+          }),
+        ).toEqual([
+          {
+            _type: 'table',
+            _key: 'k8',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'k7',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k6',
+                    value: [
+                      {
+                        _type: 'block',
+                        _key: 'k0',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k1',
+                            text: 'before',
+                            marks: [],
+                          },
+                        ],
+                      },
+                      {
+                        _type: 'block',
+                        _key: 'k2',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k3',
+                            text: 'second',
+                            marks: [],
+                          },
+                        ],
+                      },
+                      {
+                        _type: 'block',
+                        _key: 'k4',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k5',
+                            text: 'after',
+                            marks: [],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ])
+      })
+
+      test('imports a table inside a callout with code in a cell', () => {
+        const markdown =
+          '> [!TIP]\n> | before<br><br>json:object`{"_type":"code","_key":"code","language":"ts","code":"const a = 1\\nconst b = 2"}`<br><br>after |\n> | --- |'
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator: createTestKeyGenerator(),
+          }),
+        ).toEqual([
+          {
+            _type: 'callout',
+            _key: 'k8',
+            tone: 'tip',
+            content: [
+              {
+                _type: 'table',
+                _key: 'k7',
+                headerRows: 1,
+                rows: [
+                  {
+                    _type: 'row',
+                    _key: 'k6',
+                    cells: [
+                      {
+                        _type: 'cell',
+                        _key: 'k5',
+                        value: [
+                          {
+                            _type: 'block',
+                            _key: 'k0',
+                            style: 'normal',
+                            markDefs: [],
+                            children: [
+                              {
+                                _type: 'span',
+                                _key: 'k1',
+                                text: 'before',
+                                marks: [],
+                              },
+                            ],
+                          },
+                          {
+                            _type: 'code',
+                            _key: 'code',
+                            language: 'ts',
+                            code: 'const a = 1\nconst b = 2',
+                          },
+                          {
+                            _type: 'block',
+                            _key: 'k3',
+                            style: 'normal',
+                            markDefs: [],
+                            children: [
+                              {
+                                _type: 'span',
+                                _key: 'k4',
+                                text: 'after',
+                                marks: [],
+                              },
+                            ],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ])
+      })
+
+      test('imports two handwritten paragraphs in a table cell', () => {
+        expect(
+          markdownToPortableText('| a<br><br>b |\n| --- |', {
+            keyGenerator: createTestKeyGenerator(),
+          }),
+        ).toEqual([
+          {
+            _type: 'table',
+            _key: 'k6',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'k5',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k4',
+                    value: [
+                      {
+                        _type: 'block',
+                        _key: 'k0',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k1',
+                            text: 'a',
+                            marks: [],
+                          },
+                        ],
+                      },
+                      {
+                        _type: 'block',
+                        _key: 'k2',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k3',
+                            text: 'b',
+                            marks: [],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ])
+      })
+    })
+    describe('cell boundary controls', () => {
+      test('imports a callout holding code alone in a table cell', () => {
+        const markdown =
+          '| json:object`{"_type":"callout","_key":"callout","tone":"tip","content":[{"_type":"code","_key":"code","language":"ts","code":"const a = 1\\nconst b = 2"}]}` |\n| --- |'
+
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator: createTestKeyGenerator(),
+          }),
+        ).toEqual([
+          {
+            _type: 'table',
+            _key: 'k3',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'k2',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k1',
+                    value: [
+                      {
+                        _type: 'callout',
+                        _key: 'callout',
+                        tone: 'tip',
+                        content: [
+                          {
+                            _type: 'code',
+                            _key: 'code',
+                            language: 'ts',
+                            code: 'const a = 1\nconst b = 2',
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ])
+      })
+
+      test('imports a table holding code alone in a table cell', () => {
+        const markdown =
+          '| json:object`{"_type":"table","_key":"nested","headerRows":1,"rows":[{"_type":"row","_key":"nestedrow","cells":[{"_type":"cell","_key":"nestedcell","value":[{"_type":"block","_key":"intro","style":"normal","markDefs":[],"children":[{"_type":"span","_key":"intros","text":"before","marks":[]}]},{"_type":"code","_key":"code","language":"ts","code":"const a = 1\\nconst b = 2"},{"_type":"block","_key":"after","style":"normal","markDefs":[],"children":[{"_type":"span","_key":"afters","text":"after","marks":[]}]}]}]}]}` |\n| --- |'
+        expect(
+          markdownToPortableText(markdown, {
+            keyGenerator: createTestKeyGenerator(),
+          }),
+        ).toEqual([
+          {
+            _type: 'table',
+            _key: 'k3',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'k2',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k1',
+                    value: [
+                      {
+                        _type: 'table',
+                        _key: 'nested',
+                        headerRows: 1,
+                        rows: [
+                          {
+                            _type: 'row',
+                            _key: 'nestedrow',
+                            cells: [
+                              {
+                                _type: 'cell',
+                                _key: 'nestedcell',
+                                value: [
+                                  {
+                                    _type: 'block',
+                                    _key: 'intro',
+                                    style: 'normal',
+                                    markDefs: [],
+                                    children: [
+                                      {
+                                        _type: 'span',
+                                        _key: 'intros',
+                                        text: 'before',
+                                        marks: [],
+                                      },
+                                    ],
+                                  },
+                                  {
+                                    _type: 'code',
+                                    _key: 'code',
+                                    language: 'ts',
+                                    code: 'const a = 1\nconst b = 2',
+                                  },
+                                  {
+                                    _type: 'block',
+                                    _key: 'after',
+                                    style: 'normal',
+                                    markDefs: [],
+                                    children: [
+                                      {
+                                        _type: 'span',
+                                        _key: 'afters',
+                                        text: 'after',
+                                        marks: [],
+                                      },
+                                    ],
+                                  },
+                                ],
+                              },
+                            ],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ])
+      })
+
+      test('imports a single break inside a table cell', () => {
+        expect(
+          markdownToPortableText('| a<br>b |\n| --- |', {
+            keyGenerator: createTestKeyGenerator(),
+          }),
+        ).toEqual([
+          {
+            _type: 'table',
+            _key: 'k4',
+            headerRows: 1,
+            rows: [
+              {
+                _type: 'row',
+                _key: 'k3',
+                cells: [
+                  {
+                    _type: 'cell',
+                    _key: 'k2',
+                    value: [
+                      {
+                        _type: 'block',
+                        _key: 'k0',
+                        style: 'normal',
+                        markDefs: [],
+                        children: [
+                          {
+                            _type: 'span',
+                            _key: 'k1',
+                            text: 'ab',
+                            marks: [],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ])
+      })
+
+      test('imports two breaks outside a table', () => {
+        expect(
+          markdownToPortableText('a<br><br>b', {
+            keyGenerator: createTestKeyGenerator(),
+          }),
+        ).toEqual([
+          {
+            _type: 'block',
+            _key: 'k0',
+            style: 'normal',
+            children: [
+              {
+                _type: 'span',
+                _key: 'k1',
+                text: 'ab',
+                marks: [],
+              },
+            ],
+            markDefs: [],
+          },
+        ])
+      })
+    })
+
     const tableObjectDefinition = {
       name: 'table',
       fields: [

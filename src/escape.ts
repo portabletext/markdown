@@ -34,10 +34,16 @@ export function escapeImageAndLinkTitle(text: string): string {
  * them, so escapes already in the rendered cell (such as `\[` and `\]` in
  * link text) survive the pass untouched.
  */
-export function escapeTableCell(text: string): string {
+export function escapeTableCell(
+  text: string,
+  escapeTrailingBackslash = false,
+): string {
   return text
-    .replace(/(\\*)\|/g, (match, backslashes: string) =>
-      backslashes.length % 2 === 0 ? `${backslashes}\\|` : match,
-    )
+    .replace(/(\\*)(\||$)/g, (match, backslashes: string, pipe: string) => {
+      const needsEscape = backslashes.length % 2 === (pipe ? 0 : 1)
+      return needsEscape && (pipe || escapeTrailingBackslash)
+        ? `${backslashes}\\${pipe}`
+        : match
+    })
     .replace(/\n/g, '<br>')
 }

@@ -3449,6 +3449,838 @@ describe(applyMarkdownEdit.name, () => {
     ).toEqual([stored[0], block('b2', 's3', 'gamma')])
   })
 
+  describe('table cell blocks', () => {
+    test('keeps code first during a same-cell text edit', () => {
+      const stored = [
+        {
+          _type: 'table',
+          _key: 'k5',
+          headerRows: 1,
+          rows: [
+            {
+              _type: 'row',
+              _key: 'k4',
+              cells: [
+                {
+                  _type: 'cell',
+                  _key: 'k3',
+                  value: [
+                    {
+                      _type: 'code',
+                      _key: 'code',
+                      language: 'ts',
+                      code: 'const a = 1\nconst b = 2',
+                    },
+                    {
+                      _type: 'block',
+                      _key: 'k1',
+                      style: 'normal',
+                      markDefs: [],
+                      children: [
+                        {
+                          _type: 'span',
+                          _key: 'k2',
+                          text: 'after',
+                          marks: [],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ]
+      const markdown = portableTextToMarkdown(structuredClone(stored)).replace(
+        'after',
+        'after edited',
+      )
+      expect(
+        applyMarkdownEdit(stored, markdown, {
+          deserialize: {keyGenerator: createTestKeyGenerator()},
+        }),
+      ).toEqual([
+        {
+          _type: 'table',
+          _key: 'k5',
+          headerRows: 1,
+          rows: [
+            {
+              _type: 'row',
+              _key: 'k4',
+              cells: [
+                {
+                  _type: 'cell',
+                  _key: 'k3',
+                  value: [
+                    {
+                      _type: 'code',
+                      _key: 'code',
+                      language: 'ts',
+                      code: 'const a = 1\nconst b = 2',
+                    },
+                    {
+                      _type: 'block',
+                      _key: 'k1',
+                      style: 'normal',
+                      markDefs: [],
+                      children: [
+                        {
+                          _type: 'span',
+                          _key: 'k2',
+                          text: 'after edited',
+                          marks: [],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ])
+    })
+
+    test('keeps code in the middle during a same-cell text edit', () => {
+      const stored = [
+        {
+          _type: 'table',
+          _key: 'k7',
+          headerRows: 1,
+          rows: [
+            {
+              _type: 'row',
+              _key: 'k6',
+              cells: [
+                {
+                  _type: 'cell',
+                  _key: 'k5',
+                  value: [
+                    {
+                      _type: 'block',
+                      _key: 'k0',
+                      style: 'normal',
+                      markDefs: [],
+                      children: [
+                        {
+                          _type: 'span',
+                          _key: 'k1',
+                          text: 'before',
+                          marks: [],
+                        },
+                      ],
+                    },
+                    {
+                      _type: 'code',
+                      _key: 'code',
+                      language: 'ts',
+                      code: 'const a = 1\nconst b = 2',
+                    },
+                    {
+                      _type: 'block',
+                      _key: 'k3',
+                      style: 'normal',
+                      markDefs: [],
+                      children: [
+                        {
+                          _type: 'span',
+                          _key: 'k4',
+                          text: 'after',
+                          marks: [],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ]
+      const markdown = portableTextToMarkdown(structuredClone(stored)).replace(
+        'before',
+        'before edited',
+      )
+      expect(
+        applyMarkdownEdit(stored, markdown, {
+          deserialize: {keyGenerator: createTestKeyGenerator()},
+        }),
+      ).toEqual([
+        {
+          _type: 'table',
+          _key: 'k7',
+          headerRows: 1,
+          rows: [
+            {
+              _type: 'row',
+              _key: 'k6',
+              cells: [
+                {
+                  _type: 'cell',
+                  _key: 'k5',
+                  value: [
+                    {
+                      _type: 'block',
+                      _key: 'k0',
+                      style: 'normal',
+                      markDefs: [],
+                      children: [
+                        {
+                          _type: 'span',
+                          _key: 'k1',
+                          text: 'before edited',
+                          marks: [],
+                        },
+                      ],
+                    },
+                    {
+                      _type: 'code',
+                      _key: 'code',
+                      language: 'ts',
+                      code: 'const a = 1\nconst b = 2',
+                    },
+                    {
+                      _type: 'block',
+                      _key: 'k3',
+                      style: 'normal',
+                      markDefs: [],
+                      children: [
+                        {
+                          _type: 'span',
+                          _key: 'k4',
+                          text: 'after',
+                          marks: [],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ])
+    })
+
+    test('keeps code last during a same-cell text edit', () => {
+      const stored = [
+        {
+          _type: 'table',
+          _key: 'k5',
+          headerRows: 1,
+          rows: [
+            {
+              _type: 'row',
+              _key: 'k4',
+              cells: [
+                {
+                  _type: 'cell',
+                  _key: 'k3',
+                  value: [
+                    {
+                      _type: 'block',
+                      _key: 'k0',
+                      style: 'normal',
+                      markDefs: [],
+                      children: [
+                        {
+                          _type: 'span',
+                          _key: 'k1',
+                          text: 'before',
+                          marks: [],
+                        },
+                      ],
+                    },
+                    {
+                      _type: 'code',
+                      _key: 'code',
+                      language: 'ts',
+                      code: 'const a = 1\nconst b = 2',
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ]
+      const markdown = portableTextToMarkdown(structuredClone(stored)).replace(
+        'before',
+        'before edited',
+      )
+      expect(
+        applyMarkdownEdit(stored, markdown, {
+          deserialize: {keyGenerator: createTestKeyGenerator()},
+        }),
+      ).toEqual([
+        {
+          _type: 'table',
+          _key: 'k5',
+          headerRows: 1,
+          rows: [
+            {
+              _type: 'row',
+              _key: 'k4',
+              cells: [
+                {
+                  _type: 'cell',
+                  _key: 'k3',
+                  value: [
+                    {
+                      _type: 'block',
+                      _key: 'k0',
+                      style: 'normal',
+                      markDefs: [],
+                      children: [
+                        {
+                          _type: 'span',
+                          _key: 'k1',
+                          text: 'before edited',
+                          marks: [],
+                        },
+                      ],
+                    },
+                    {
+                      _type: 'code',
+                      _key: 'code',
+                      language: 'ts',
+                      code: 'const a = 1\nconst b = 2',
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ])
+    })
+
+    test('keeps a callout in the middle during a same-cell text edit', () => {
+      const stored = [
+        {
+          _type: 'table',
+          _key: 'k7',
+          headerRows: 1,
+          rows: [
+            {
+              _type: 'row',
+              _key: 'k6',
+              cells: [
+                {
+                  _type: 'cell',
+                  _key: 'k5',
+                  value: [
+                    {
+                      _type: 'block',
+                      _key: 'k0',
+                      style: 'normal',
+                      markDefs: [],
+                      children: [
+                        {
+                          _type: 'span',
+                          _key: 'k1',
+                          text: 'before',
+                          marks: [],
+                        },
+                      ],
+                    },
+                    {
+                      _type: 'callout',
+                      _key: 'callout',
+                      tone: 'tip',
+                      content: [
+                        {
+                          _type: 'block',
+                          _key: 'inside',
+                          style: 'normal',
+                          markDefs: [],
+                          children: [
+                            {
+                              _type: 'span',
+                              _key: 'insides',
+                              text: 'inside',
+                              marks: [],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                    {
+                      _type: 'block',
+                      _key: 'k3',
+                      style: 'normal',
+                      markDefs: [],
+                      children: [
+                        {
+                          _type: 'span',
+                          _key: 'k4',
+                          text: 'after',
+                          marks: [],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ]
+      const markdown = portableTextToMarkdown(structuredClone(stored)).replace(
+        'before',
+        'before edited',
+      )
+      expect(
+        applyMarkdownEdit(stored, markdown, {
+          deserialize: {keyGenerator: createTestKeyGenerator()},
+        }),
+      ).toEqual([
+        {
+          _type: 'table',
+          _key: 'k7',
+          headerRows: 1,
+          rows: [
+            {
+              _type: 'row',
+              _key: 'k6',
+              cells: [
+                {
+                  _type: 'cell',
+                  _key: 'k5',
+                  value: [
+                    {
+                      _type: 'block',
+                      _key: 'k0',
+                      style: 'normal',
+                      markDefs: [],
+                      children: [
+                        {
+                          _type: 'span',
+                          _key: 'k1',
+                          text: 'before edited',
+                          marks: [],
+                        },
+                      ],
+                    },
+                    {
+                      _type: 'callout',
+                      _key: 'callout',
+                      tone: 'tip',
+                      content: [
+                        {
+                          _type: 'block',
+                          _key: 'inside',
+                          style: 'normal',
+                          markDefs: [],
+                          children: [
+                            {
+                              _type: 'span',
+                              _key: 'insides',
+                              text: 'inside',
+                              marks: [],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                    {
+                      _type: 'block',
+                      _key: 'k3',
+                      style: 'normal',
+                      markDefs: [],
+                      children: [
+                        {
+                          _type: 'span',
+                          _key: 'k4',
+                          text: 'after',
+                          marks: [],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ])
+    })
+
+    test('edits a table inside a callout with code in a cell', () => {
+      const stored = [
+        {
+          _type: 'callout',
+          _key: 'k8',
+          tone: 'tip',
+          content: [
+            {
+              _type: 'table',
+              _key: 'k7',
+              headerRows: 1,
+              rows: [
+                {
+                  _type: 'row',
+                  _key: 'k6',
+                  cells: [
+                    {
+                      _type: 'cell',
+                      _key: 'k5',
+                      value: [
+                        {
+                          _type: 'block',
+                          _key: 'k0',
+                          style: 'normal',
+                          markDefs: [],
+                          children: [
+                            {
+                              _type: 'span',
+                              _key: 'k1',
+                              text: 'before',
+                              marks: [],
+                            },
+                          ],
+                        },
+                        {
+                          _type: 'code',
+                          _key: 'code',
+                          language: 'ts',
+                          code: 'const a = 1\nconst b = 2',
+                        },
+                        {
+                          _type: 'block',
+                          _key: 'k3',
+                          style: 'normal',
+                          markDefs: [],
+                          children: [
+                            {
+                              _type: 'span',
+                              _key: 'k4',
+                              text: 'after',
+                              marks: [],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ]
+      const markdown = portableTextToMarkdown(structuredClone(stored)).replace(
+        'before',
+        'before edited',
+      )
+      expect(
+        applyMarkdownEdit(stored, markdown, {
+          deserialize: {keyGenerator: createTestKeyGenerator()},
+        }),
+      ).toEqual([
+        {
+          _type: 'callout',
+          _key: 'k8',
+          tone: 'tip',
+          content: [
+            {
+              _type: 'table',
+              _key: 'k7',
+              headerRows: 1,
+              rows: [
+                {
+                  _type: 'row',
+                  _key: 'k6',
+                  cells: [
+                    {
+                      _type: 'cell',
+                      _key: 'k5',
+                      value: [
+                        {
+                          _type: 'block',
+                          _key: 'k0',
+                          style: 'normal',
+                          markDefs: [],
+                          children: [
+                            {
+                              _type: 'span',
+                              _key: 'k1',
+                              text: 'before edited',
+                              marks: [],
+                            },
+                          ],
+                        },
+                        {
+                          _type: 'code',
+                          _key: 'code',
+                          language: 'ts',
+                          code: 'const a = 1\nconst b = 2',
+                        },
+                        {
+                          _type: 'block',
+                          _key: 'k3',
+                          style: 'normal',
+                          markDefs: [],
+                          children: [
+                            {
+                              _type: 'span',
+                              _key: 'k4',
+                              text: 'after',
+                              marks: [],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ])
+    })
+
+    test('edits a callout holding code alone in a table cell', () => {
+      const stored = [
+        {
+          _type: 'table',
+          _key: 'k3',
+          headerRows: 1,
+          rows: [
+            {
+              _type: 'row',
+              _key: 'k2',
+              cells: [
+                {
+                  _type: 'cell',
+                  _key: 'k1',
+                  value: [
+                    {
+                      _type: 'callout',
+                      _key: 'callout',
+                      tone: 'tip',
+                      content: [
+                        {
+                          _type: 'code',
+                          _key: 'code',
+                          language: 'ts',
+                          code: 'const a = 1\nconst b = 2',
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ]
+      const markdown = portableTextToMarkdown(structuredClone(stored)).replace(
+        'const a',
+        'const edited',
+      )
+      expect(
+        applyMarkdownEdit(stored, markdown, {
+          deserialize: {keyGenerator: createTestKeyGenerator()},
+        }),
+      ).toEqual([
+        {
+          _type: 'table',
+          _key: 'k3',
+          headerRows: 1,
+          rows: [
+            {
+              _type: 'row',
+              _key: 'k2',
+              cells: [
+                {
+                  _type: 'cell',
+                  _key: 'k1',
+                  value: [
+                    {
+                      _type: 'callout',
+                      _key: 'callout',
+                      tone: 'tip',
+                      content: [
+                        {
+                          _type: 'code',
+                          _key: 'code',
+                          language: 'ts',
+                          code: 'const edited = 1\nconst b = 2',
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ])
+    })
+
+    test('edits a table holding code alone in a table cell', () => {
+      const stored = [
+        {
+          _type: 'table',
+          _key: 'k3',
+          headerRows: 1,
+          rows: [
+            {
+              _type: 'row',
+              _key: 'k2',
+              cells: [
+                {
+                  _type: 'cell',
+                  _key: 'k1',
+                  value: [
+                    {
+                      _type: 'table',
+                      _key: 'nested',
+                      headerRows: 1,
+                      rows: [
+                        {
+                          _type: 'row',
+                          _key: 'nestedrow',
+                          cells: [
+                            {
+                              _type: 'cell',
+                              _key: 'nestedcell',
+                              value: [
+                                {
+                                  _type: 'block',
+                                  _key: 'intro',
+                                  style: 'normal',
+                                  markDefs: [],
+                                  children: [
+                                    {
+                                      _type: 'span',
+                                      _key: 'intros',
+                                      text: 'before',
+                                      marks: [],
+                                    },
+                                  ],
+                                },
+                                {
+                                  _type: 'code',
+                                  _key: 'code',
+                                  language: 'ts',
+                                  code: 'const a = 1\nconst b = 2',
+                                },
+                                {
+                                  _type: 'block',
+                                  _key: 'after',
+                                  style: 'normal',
+                                  markDefs: [],
+                                  children: [
+                                    {
+                                      _type: 'span',
+                                      _key: 'afters',
+                                      text: 'after',
+                                      marks: [],
+                                    },
+                                  ],
+                                },
+                              ],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ]
+      const markdown = portableTextToMarkdown(structuredClone(stored)).replace(
+        'before',
+        'before edited',
+      )
+      expect(
+        applyMarkdownEdit(stored, markdown, {
+          deserialize: {keyGenerator: createTestKeyGenerator()},
+        }),
+      ).toEqual([
+        {
+          _type: 'table',
+          _key: 'k3',
+          headerRows: 1,
+          rows: [
+            {
+              _type: 'row',
+              _key: 'k2',
+              cells: [
+                {
+                  _type: 'cell',
+                  _key: 'k1',
+                  value: [
+                    {
+                      _type: 'table',
+                      _key: 'nested',
+                      headerRows: 1,
+                      rows: [
+                        {
+                          _type: 'row',
+                          _key: 'nestedrow',
+                          cells: [
+                            {
+                              _type: 'cell',
+                              _key: 'nestedcell',
+                              value: [
+                                {
+                                  _type: 'block',
+                                  _key: 'intro',
+                                  style: 'normal',
+                                  markDefs: [],
+                                  children: [
+                                    {
+                                      _type: 'span',
+                                      _key: 'intros',
+                                      text: 'before edited',
+                                      marks: [],
+                                    },
+                                  ],
+                                },
+                                {
+                                  _type: 'code',
+                                  _key: 'code',
+                                  language: 'ts',
+                                  code: 'const a = 1\nconst b = 2',
+                                },
+                                {
+                                  _type: 'block',
+                                  _key: 'after',
+                                  style: 'normal',
+                                  markDefs: [],
+                                  children: [
+                                    {
+                                      _type: 'span',
+                                      _key: 'afters',
+                                      text: 'after',
+                                      marks: [],
+                                    },
+                                  ],
+                                },
+                              ],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ])
+    })
+  })
   test('an edit to one table cell leaves an annotated sibling cell verbatim', () => {
     const keyGenerator = createTestKeyGenerator()
     const stored = [

@@ -58,6 +58,7 @@ import {
   DefaultImageRenderer,
   DefaultTableRenderer,
   DefaultUnknownTypeRenderer,
+  renderTableWithSchema,
 } from './renderers/type'
 import type {PortableTextRenderers} from './types'
 
@@ -525,9 +526,12 @@ function gateDefaultTypeRenderers(
           rendererOptions.isInline ? schema.inlineObjects : schema.blockObjects
         ).some((item) => item.name === typeName)
 
-        return declared && renderer
-          ? renderer(rendererOptions)
-          : resolvedUnknownType(rendererOptions)
+        if (!declared || !renderer) {
+          return resolvedUnknownType(rendererOptions)
+        }
+        return renderer === DefaultTableRenderer
+          ? renderTableWithSchema(rendererOptions, schema)
+          : renderer(rendererOptions)
       },
     ]),
   )
