@@ -1,5 +1,5 @@
 import {isTypedObject} from '@portabletext/schema'
-import {isPortableTextBlock} from '@portabletext/toolkit'
+import {isPortableTextBlock, toPlainText} from '@portabletext/toolkit'
 import type {PortableTextBlock, TypedObject} from '@portabletext/types'
 import {defaultSchema} from '../../default-schema'
 import {
@@ -9,8 +9,9 @@ import {
 } from '../../escape'
 import {markListItemFirstBlock} from '../list-item-first-block'
 import {consumeCellParagraph, markCellParagraph} from '../tag-hard-break'
-import type {PortableTextTypeRenderer} from '../types'
+import type {PortableTextTypeRenderer, RenderNode} from '../types'
 import {validateLink} from '../validate-link'
+import {verifyContainerHeading} from '../verify-container-heading'
 import {wrapInCodeSpan} from './marks'
 
 /**
@@ -368,12 +369,7 @@ export const DefaultCalloutRenderer: PortableTextTypeRenderer<{
   const {renderNode} = options
   const renderedContent = options.value.content
     .map((block, index) =>
-      renderNode({
-        node: isPortableTextBlock(block) ? {...block, style: 'normal'} : block,
-        index,
-        isInline: false,
-        renderNode,
-      }),
+      renderContainerContent(block, index, renderNode, options),
     )
     .filter((rendered) => rendered !== '')
     .join('\n\n')
@@ -397,8 +393,47 @@ function isCalloutShaped(
   )
 }
 
+// Keep the established non-heading fallbacks. A heading survives only when
+// its standalone rendering reads back like the input or its root rendering.
+function renderContainerContent(
+  block: TypedObject,
+  index: number,
+  renderNode: RenderNode,
+  context: object,
+): string {
+  const render = (node: TypedObject | PortableTextBlock) =>
+    renderNode({node, index, isInline: false, renderNode})
+  if (!isPortableTextBlock(block)) {
+    return render(block)
+  }
+  if (
+    !block.style ||
+    block.style === 'blockquote' ||
+    block.listItem !== undefined ||
+    toPlainText(block).trim() === ''
+  ) {
+    return render({...block, style: 'normal'})
+  }
+  if (/^h[1-6]$/.test(block.style)) {
+    const verify =
+      verifyContainerHeading in context
+        ? context[verifyContainerHeading]
+        : verifyContainerHeading in renderNode
+          ? renderNode[verifyContainerHeading]
+          : undefined
+    if (typeof verify === 'function') {
+      const rendered = verify(block, () => render(block))
+      if (rendered !== undefined) {
+        return rendered
+      }
+    }
+    return render({...block, style: 'normal'})
+  }
+  return render(block)
+}
+
 /**
- * Renders a structural blockquote block-object (the `types.blockquote` shape
+ * Renders blockquote objects (`types.blockquote`, the shape
  * produced by `markdownToPortableText` when a `types.blockquote` matcher is
  * provided) back to Markdown. Each content block is rendered via the
  * recursive renderer pipeline, joined with blank lines, and every line is
@@ -412,15 +447,11 @@ function isCalloutShaped(
 export const DefaultBlockquoteObjectRenderer: PortableTextTypeRenderer<{
   _type: 'blockquote'
   content: Array<PortableTextBlock>
-}> = ({value, renderNode}) => {
+}> = (options) => {
+  const {value, renderNode} = options
   const renderedContent = value.content
     .map((block, index) =>
-      renderNode({
-        node: isPortableTextBlock(block) ? {...block, style: 'normal'} : block,
-        index,
-        isInline: false,
-        renderNode,
-      }),
+      renderContainerContent(block, index, renderNode, options),
     )
     .filter((rendered) => rendered !== '')
     .join('\n\n')

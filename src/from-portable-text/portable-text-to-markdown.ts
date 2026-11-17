@@ -283,6 +283,56 @@ function renderMarkdown(
     listIndexMap,
     listDepthMap,
     reportDegradation,
+    false,
+    (node, rendered) => {
+      const actual = parseByBlock([rendered], [], options.schema)[0]!
+      if (
+        actual.length === 1 &&
+        actual[0] ===
+          neutralForm({
+            ...node,
+            _type: (options.schema ?? defaultSchema).block.name,
+          })
+      ) {
+        return true
+      }
+      // Compare with this writer's root output as well: losses already
+      // present at root need not also cost a container its heading style.
+      const root = renderMarkdown(
+        [node],
+        {...options, onDegradation: undefined},
+        undefined,
+      )
+      // Identical Markdown has identical read-back under the same parser.
+      if (rendered !== root) {
+        const expected = parseByBlock([root], [], options.schema)[0]!
+        if (
+          actual.length !== expected.length ||
+          actual.some((form, index) => form !== expected[index])
+        ) {
+          return false
+        }
+      }
+      // Root equivalence must not discard content the normal fallback
+      // preserves (for example, a leading tab stripped by ATX parsing).
+      const normal = {...node, style: 'normal'}
+      const plain = renderMarkdown(
+        [normal],
+        {...options, onDegradation: undefined},
+        undefined,
+      )
+      return (
+        failingCandidates(
+          [normal],
+          [plain],
+          [],
+          new Map([[0, plain]]),
+          [[]],
+          options.schema,
+        ).size !== 0
+      )
+    },
+    (options.schema ?? defaultSchema).styles,
   )
 
   // Blocks rendering to '' are dropped before spacing is computed, so

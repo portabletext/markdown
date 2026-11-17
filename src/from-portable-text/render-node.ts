@@ -33,10 +33,15 @@ import {DefaultUnknownMarkRenderer} from './renderers/marks'
 import {
   DefaultH1Renderer,
   DefaultH2Renderer,
+  DefaultH3Renderer,
+  DefaultH4Renderer,
+  DefaultH5Renderer,
+  DefaultH6Renderer,
   DefaultUnknownStyleRenderer,
 } from './renderers/style'
 import {consumeCellParagraph, tagHardBreak} from './tag-hard-break'
 import type {PortableTextRenderers, RenderNode, Serializable} from './types'
+import {verifyContainerHeading} from './verify-container-heading'
 
 type ReportDegradation = (
   entry: SerializeDegradationLoss & {
@@ -53,6 +58,60 @@ type ReportDegradation = (
  */
 const HEADING_STYLES = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
 
+const DEFAULT_HEADINGS = new Map([
+  ['h1', DefaultH1Renderer],
+  ['h2', DefaultH2Renderer],
+  ['h3', DefaultH3Renderer],
+  ['h4', DefaultH4Renderer],
+  ['h5', DefaultH5Renderer],
+  ['h6', DefaultH6Renderer],
+])
+
+// A deliberately small grammar: no escaping, marks, metadata, inline objects,
+// whitespace normalization or renderer behavior needs to be proved at runtime.
+// Everything outside this grammar keeps the existing read-back check.
+function isPlainlySafeHeading(
+  node: TypedObject,
+  renderers: PortableTextRenderers,
+  rendered: string,
+): node is PortableTextBlock {
+  if (
+    !isPortableTextBlock(node) ||
+    node._type !== 'block' ||
+    renderers.hardBreak !== DefaultHardBreakRenderer ||
+    typeof renderers.block === 'function' ||
+    renderers.block[node.style || ''] !==
+      DEFAULT_HEADINGS.get(node.style || '') ||
+    !DEFAULT_HEADINGS.has(node.style || '') ||
+    Object.keys(node).some(
+      (key) =>
+        !['_type', '_key', 'style', 'children', 'markDefs'].includes(key),
+    ) ||
+    !Array.isArray(node.markDefs) ||
+    node.markDefs.length !== 0 ||
+    (node._key !== undefined &&
+      (typeof node._key !== 'string' || /[\r\n\t]/.test(node._key))) ||
+    node.children.length !== 1
+  ) {
+    return false
+  }
+  const span = node.children[0]
+  return (
+    span?._type === 'span' &&
+    (span._key === undefined ||
+      (typeof span._key === 'string' && !/[\r\n\t]/.test(span._key))) &&
+    Object.keys(span).every((key) =>
+      ['_type', '_key', 'text', 'marks'].includes(key),
+    ) &&
+    typeof span.text === 'string' &&
+    /^[A-Za-z0-9]+(?: [A-Za-z0-9]+)*$/.test(span.text) &&
+    Array.isArray(span.marks) &&
+    span.marks.length === 0 &&
+    // A wrapper may forward the verification capability while changing output.
+    rendered === `${'#'.repeat(Number(node.style?.slice(1)))} ${span.text}`
+  )
+}
+
 const SETEXT_UNDERLINES = new Map([
   [DefaultH1Renderer, '==='],
   [DefaultH2Renderer, '---'],
@@ -62,9 +121,13 @@ export const createRenderNode = (
   renderers: PortableTextRenderers,
   listIndexMap: Map<string, number>,
   listDepthMap: Map<string, number>,
-  reportDegradation: ReportDegradation | undefined,
+  onDegradation: ReportDegradation | undefined,
   candidateForms = false,
+  verifyHeading?: (node: TypedObject, rendered: string) => boolean,
+  parserStyles: ReadonlyArray<{name: string}> = [],
 ): RenderNode => {
+  let reportDegradation = onDegradation
+
   // Keyed by the actual `@text` node objects `buildMarksTree` produces, not
   // by render order: a custom type/mark renderer can call `renderNode` with
   // a synthetic node of its own mid-block (eg to render a placeholder), and
@@ -375,6 +438,9 @@ export const createRenderNode = (
     const component = renderers.types[value._type] ?? renderers.unknownType
 
     return component({
+      // Renderer context survives options spreads even when a wrapper
+      // replaces renderNode with a forwarding function.
+      ...{[verifyContainerHeading]: renderNode[verifyContainerHeading]},
       value,
       isInline,
       index,
@@ -382,5 +448,35 @@ export const createRenderNode = (
     })
   }
 
+  renderNode[verifyContainerHeading] = verifyHeading
+    ? (node: TypedObject, render: () => string): string | undefined => {
+        const enclosingReport = reportDegradation
+        // Rejected headings are rendered again as normal. Report only
+        // losses from the accepted rendering, including root-equivalent loss.
+        const losses: Array<Parameters<ReportDegradation>[0]> = []
+        reportDegradation = enclosingReport
+          ? (entry) => losses.push(entry)
+          : undefined
+        try {
+          const rendered = render()
+          if (
+            rendered !== '' &&
+            ((isPlainlySafeHeading(node, renderers, rendered) &&
+              parserStyles.some(({name}) => name === node.style)) ||
+              verifyHeading(node, rendered))
+          ) {
+            losses.forEach((entry) => enclosingReport?.(entry))
+            return rendered
+          }
+          return undefined
+        } catch {
+          // A failed parse or non-JSON value (eg a cyclic mark definition)
+          // cannot establish equivalence either.
+          return undefined
+        } finally {
+          reportDegradation = enclosingReport
+        }
+      }
+    : undefined
   return renderNode
 }
