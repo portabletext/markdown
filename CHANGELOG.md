@@ -1,5 +1,23 @@
 # @portabletext/markdown
 
+## 2.9.6
+
+### Patch Changes
+
+- [#13](https://github.com/portabletext/markdown/pull/13) [`4edc8c2`](https://github.com/portabletext/markdown/commit/4edc8c2151316ff551f184607be6f81a710be1fd) Thanks [@renovate](https://github.com/apps/renovate)! - fix(deps): update portabletext
+
+- [#10](https://github.com/portabletext/markdown/pull/10) [`a176a94`](https://github.com/portabletext/markdown/commit/a176a941d3e6e6c9667a2e8ebcbd768d7c6384b1) Thanks [@christianhg](https://github.com/christianhg)! - fix: read and write line breaks in Markdown headings and table cells
+  
+  A line break in an h3 to h6 heading, or in an h1 or h2 written with `#`, now survives Markdown export and import. So does a line break in a table cell. Headings write `<br>` and table cells write `<br />`.
+  
+  Markdown `<br>`, `<br/>` and `<br />` used to be dropped, or kept as text, and now read as line breaks.
+  
+  Paragraphs, headings written with an underline, and a custom `hardBreak` are unchanged.
+
+- [#11](https://github.com/portabletext/markdown/pull/11) [`8fe6459`](https://github.com/portabletext/markdown/commit/8fe6459e19aca28dd731695f930287b582b2ce94) Thanks [@christianhg](https://github.com/christianhg)! - fix: point the npm homepage to www.portabletext.org
+  
+  The package's npm page now links to https://www.portabletext.org.
+
 ## 2.9.5
 
 ### Patch Changes
