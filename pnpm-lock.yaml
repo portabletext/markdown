@@ -39,8 +39,8 @@ importers:
         specifier: ^3.0.3
         version: 3.0.3
       '@portabletext/test':
-        specifier: ^2.1.4
-        version: 2.1.4
+        specifier: ^3.0.0
+        version: 3.0.0
       '@portabletext/types':
         specifier: ^4.0.2
         version: 4.0.2
@@ -1045,8 +1045,8 @@ packages:
     resolution: {integrity: sha512-GR6KBbTYS6YAc7b9rYecqRbLmhUXeGEOCvA3qUs6dKariACBhuBM+CUtakbwyrnioQknpOeI8J+jFOFJka3vXw==}
     engines: {node: '>=22.12'}
 
-  '@portabletext/test@2.1.4':
-    resolution: {integrity: sha512-+wtFLb7CYxqkL9Og6yD9Cv3d970Z2frSkE13uNQqDI281BOOJKqFjJ600+Qgiure+4djgaBKJvVW4zYSFTQx8Q==}
+  '@portabletext/test@3.0.0':
+    resolution: {integrity: sha512-fXVit5uod4EG1vFaXIYAKGE6bM7TED8bl09lbbO3GFzfSCl4B7HS4mCaUJMpFyCU/hUa4Ey5+GsK78z+hts3tg==}
     engines: {node: '>=22.12'}
 
   '@portabletext/toolkit@6.0.0':
@@ -1401,8 +1401,8 @@ packages:
     resolution: {integrity: sha512-tlqY9xq5ukxTUZBmoOp+m61cqwQD5pHJtFY3Mn8CA8ps6yghLH/Hw8UPdqg4OLmFW3IFlcXnQNmo/dh8HzXYIQ==}
     engines: {node: '>=18'}
 
-  '@textspec/notation@1.0.2':
-    resolution: {integrity: sha512-xvqE3lJPRBqsqN1WvJ0FftSBOZTzjNz7+iHdy++/D+klf/MxpJTE7IPPzL467cTXK3iqvc7QO0C5bV3BfufgpQ==}
+  '@textspec/notation@2.0.0':
+    resolution: {integrity: sha512-hbFTSOV57gbKsdNsv0JYqCeWjWNDzigHgHWHbjh28SBhzgPA4h9XL67/j5zijkYzAQ0iDRegzz8e5rpe0FNgQw==}
     engines: {node: '>=20.19 <22 || >=22.12'}
 
   '@tybys/wasm-util@0.10.4':
@@ -3700,10 +3700,10 @@ snapshots:
 
   '@portabletext/schema@3.1.1': {}
 
-  '@portabletext/test@2.1.4':
+  '@portabletext/test@3.0.0':
     dependencies:
       '@portabletext/schema': 3.1.1
-      '@textspec/notation': 1.0.2
+      '@textspec/notation': 2.0.0
 
   '@portabletext/toolkit@6.0.0':
     dependencies:
@@ -3985,7 +3985,7 @@ snapshots:
 
   '@sindresorhus/merge-streams@4.0.0': {}
 
-  '@textspec/notation@1.0.2': {}
+  '@textspec/notation@2.0.0': {}
 
   '@tybys/wasm-util@0.10.4':
     dependencies:
