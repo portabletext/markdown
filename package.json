@@ -38,6 +38,7 @@
   "scripts": {
     "build": "pkg-utils build --strict --check",
     "bundle-stats": "bundle-stats",
+    "check:fallow": "fallow dead-code",
     "check:format": "oxfmt --check .",
     "check:knip": "NODE_OPTIONS=\"$NODE_OPTIONS --conditions=source\" knip",
     "check:lint": "oxlint",
@@ -72,6 +73,7 @@
     "@sanity/tsconfig": "^2.2.1",
     "@types/node": "^24",
     "del-cli": "^6.0.0",
+    "fallow": "3.43.2",
     "knip": "6.0.0",
     "oxfmt": "^0.56.0",
     "oxlint": "^1.79.0",
