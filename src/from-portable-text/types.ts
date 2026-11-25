@@ -251,9 +251,7 @@ export interface PortableTextMarkRendererOptions<
  * Any node type that we can't identify - eg it has an `_type`,
  * but we don't know anything about its other properties
  */
-export type UnknownNodeType =
-  | {[key: string]: unknown; _type: string}
-  | TypedObject
+type UnknownNodeType = {[key: string]: unknown; _type: string} | TypedObject
 
 export type RenderNode = <T extends TypedObject>(
   options: Serializable<T>,
