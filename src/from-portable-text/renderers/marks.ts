@@ -1,3 +1,4 @@
+import {uriLooksSafe} from '@portabletext/toolkit'
 import type {TypedObject} from '@portabletext/types'
 import {escapeImageAndLinkTitle} from '../../escape'
 import type {PortableTextMarkRenderer} from '../types'
@@ -101,38 +102,6 @@ export const DefaultLinkRenderer: PortableTextMarkRenderer<DefaultLink> = ({
 
   // Return children without link when URL is unsafe
   return children
-}
-
-function uriLooksSafe(uri: string): boolean {
-  const url = (uri || '').trim()
-  const first = url.charAt(0)
-
-  if (first === '#' || first === '/') {
-    return true
-  }
-
-  const colonIndex = url.indexOf(':')
-  if (colonIndex === -1) {
-    return true
-  }
-
-  const allowedProtocols = ['http', 'https', 'mailto', 'tel']
-  const proto = url.slice(0, colonIndex).toLowerCase()
-  if (allowedProtocols.indexOf(proto) !== -1) {
-    return true
-  }
-
-  const queryIndex = url.indexOf('?')
-  if (queryIndex !== -1 && colonIndex > queryIndex) {
-    return true
-  }
-
-  const hashIndex = url.indexOf('#')
-  if (hashIndex !== -1 && colonIndex > hashIndex) {
-    return true
-  }
-
-  return false
 }
 
 /**
