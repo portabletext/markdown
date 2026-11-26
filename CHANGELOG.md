@@ -1,5 +1,15 @@
 # @portabletext/markdown
 
+## 2.9.7
+
+### Patch Changes
+
+- [#17](https://github.com/portabletext/markdown/pull/17) [`7dd79b1`](https://github.com/portabletext/markdown/commit/7dd79b10c2274823276ba713d4361f3b9ed021bc) Thanks [@renovate](https://github.com/apps/renovate)! - fix(deps): update portabletext
+
+- [#16](https://github.com/portabletext/markdown/pull/16) [`14f6193`](https://github.com/portabletext/markdown/commit/14f61933808c663f31e388299525c06a6d78c080) Thanks [@stipsan](https://github.com/stipsan)! - fix: use `uriLooksSafe` from `@portabletext/toolkit`
+  
+  Links are checked for unsafe protocols with the toolkit's shared helper instead of a local copy. The same links render as before.
+
 ## 2.9.6
 
 ### Patch Changes
