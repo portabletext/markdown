@@ -1,5 +1,11 @@
 # @portabletext/markdown
 
+## 2.9.8
+
+### Patch Changes
+
+- [#19](https://github.com/portabletext/markdown/pull/19) [`a834c0a`](https://github.com/portabletext/markdown/commit/a834c0a4326da244234cc9b6dec2cd8394696b2b) Thanks [@renovate](https://github.com/apps/renovate)! - fix(deps): update portabletext
+
 ## 2.9.7
 
 ### Patch Changes
